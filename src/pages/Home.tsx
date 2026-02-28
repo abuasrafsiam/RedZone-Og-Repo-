@@ -94,14 +94,87 @@ const Home = ({ currentUserId }: HomeProps) => {
 
   const subscribeToPosts = useCallback(() => {
     const subscription = supabase
-      .channel("posts")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => {
-        fetchPosts();
-      })
+      .channel("feed-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        () => {
+          // Refetch all posts when post content changes
+          fetchPosts();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "post_likes" },
+        (payload: any) => {
+          // Update specific post when liked
+          setPosts((prevPosts) =>
+            prevPosts.map((p) =>
+              p.id === payload.new.post_id
+                ? { ...p, likes_count: p.likes_count + 1 }
+                : p
+            )
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "post_likes" },
+        (payload: any) => {
+          // Update specific post when unliked
+          setPosts((prevPosts) =>
+            prevPosts.map((p) =>
+              p.id === payload.old.post_id
+                ? { ...p, likes_count: Math.max(0, p.likes_count - 1) }
+                : p
+            )
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments" },
+        (payload: any) => {
+          // Update specific post when comment is added (only count top-level comments)
+          if (!payload.new.parent_comment_id) {
+            setPosts((prevPosts) =>
+              prevPosts.map((p) =>
+                p.id === payload.new.post_id
+                  ? { ...p, comments_count: p.comments_count + 1 }
+                  : p
+              )
+            );
+          }
+          // Refresh comments for this post if expanded
+          if (expandedComments.has(payload.new.post_id)) {
+            fetchComments(payload.new.post_id);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments" },
+        (payload: any) => {
+          // Update specific post when comment is deleted (only count top-level comments)
+          if (!payload.old.parent_comment_id) {
+            setPosts((prevPosts) =>
+              prevPosts.map((p) =>
+                p.id === payload.old.post_id
+                  ? { ...p, comments_count: Math.max(0, p.comments_count - 1) }
+                  : p
+              )
+            );
+          }
+          // Refresh comments for this post if expanded
+          if (expandedComments.has(payload.old.post_id)) {
+            fetchComments(payload.old.post_id);
+          }
+        }
+      )
       .subscribe();
 
     return () => subscription.unsubscribe();
-  }, [fetchPosts]);
+  }, [fetchPosts, expandedComments]);
 
   useEffect(() => {
     fetchPosts();
@@ -171,20 +244,39 @@ const Home = ({ currentUserId }: HomeProps) => {
   const toggleLike = async (postId: string, isLiked: boolean) => {
     try {
       if (isLiked) {
-        // Unlike
-        await (supabase.from("post_likes") as any).delete().eq("post_id", postId).eq("user_id", currentUserId);
+        // Unlike - optimistic update
         setPosts(
           posts.map((p) =>
             p.id === postId ? { ...p, isLikedByMe: false, likes_count: Math.max(0, p.likes_count - 1) } : p
           )
         );
+        // Delete from database
+        const { error } = await (supabase.from("post_likes") as any)
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", currentUserId);
+        
+        if (error) {
+          // Revert optimistic update on error
+          await fetchPosts();
+          toast.error("Failed to unlike post");
+        }
       } else {
-        // Like
-        await (supabase.from("post_likes") as any).insert({ post_id: postId, user_id: currentUserId });
+        // Like - optimistic update
         setPosts(posts.map((p) => (p.id === postId ? { ...p, isLikedByMe: true, likes_count: p.likes_count + 1 } : p)));
+        // Insert into database
+        const { error } = await (supabase.from("post_likes") as any).insert({ post_id: postId, user_id: currentUserId });
+        
+        if (error) {
+          // Revert optimistic update on error
+          await fetchPosts();
+          toast.error("Failed to like post");
+        }
       }
     } catch (error) {
       console.error("Error toggling like:", error);
+      // Fetch fresh data in case of error
+      await fetchPosts();
       toast.error("Failed to like post");
     }
   };
@@ -301,8 +393,8 @@ const Home = ({ currentUserId }: HomeProps) => {
         } else {
           setCommentInput((prev) => ({ ...prev, [postId]: "" }));
         }
-        await fetchComments(postId);
-        // Update comment count (only for main comments)
+        
+        // Optimistically update comment count for main comments
         if (!parentCommentId) {
           setPosts((prev) =>
             prev.map((p) =>
@@ -310,6 +402,10 @@ const Home = ({ currentUserId }: HomeProps) => {
             )
           );
         }
+        
+        // Fetch comments to refresh the list
+        await fetchComments(postId);
+        
         // Auto-scroll to newest comment
         setTimeout(() => {
           commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -8,7 +8,8 @@ interface NotificationModalProps {
 }
 
 const NotificationModal = ({ notification, onDismiss, isOpen }: NotificationModalProps) => {
-  if (!notification) return null;
+  // Check isOpen first before validating notification
+  if (!isOpen || !notification) return null;
 
   // Icon selection based on type
   const iconMap = {
@@ -25,8 +26,6 @@ const NotificationModal = ({ notification, onDismiss, isOpen }: NotificationModa
     high: "border-l-4 border-orange-500/50",
     urgent: "border-l-4 border-red-500/50",
   };
-
-  if (!isOpen) return null;
 
   return (
     <>

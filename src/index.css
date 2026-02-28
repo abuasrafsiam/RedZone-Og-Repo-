@@ -155,4 +155,60 @@
   .bottom-nav-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /* Safe area insets for mobile devices */
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .safe-all {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Message composer safe positioning */
+  .messenger-input-container {
+    position: fixed;
+    bottom: 5rem; /* 80px = h-20 of nav bar (5rem * 4 = 20 * 16 = 320... wait, h-20 is 80px = 5rem) */
+    left: 0;
+    right: 0;
+    z-index: 50;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Conversation view with proper spacing */
+  .conversation-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .messages-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Smooth scrolling for iOS */
+  @supports (padding: max(0px)) {
+    .messages-area {
+      padding-bottom: 1rem;
+    }
+  }
 }

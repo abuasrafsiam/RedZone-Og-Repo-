@@ -207,7 +207,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
     const online = isOnline(user.created_at);
 
     return (
-      <div className="flex flex-col bg-gradient-to-b from-background to-background/80" style={{ minHeight: "100dvh", paddingBottom: "80px" }}>
+      <div className="conversation-container bg-gradient-to-b from-background to-background/80">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border/50 shadow-sm">
           <div className="flex items-center justify-between px-4 py-3">
@@ -262,7 +262,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
         </div>
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 flex flex-col">
+        <div className="messages-area px-4 py-4 space-y-3 flex flex-col">
           {msgLoading ? (
             <div className="flex justify-center py-20">
               <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -333,8 +333,8 @@ const Chat = ({ currentUserId }: ChatProps) => {
         </div>
 
         {/* Input Bar */}
-        <div className="fixed bottom-16 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border/50 shadow-lg safe-area-inset-bottom">
-          <div className="px-3 py-2 max-w-4xl mx-auto">
+        <div className="messenger-input-container bg-card/95 backdrop-blur-md border-t border-border/50 shadow-lg">
+          <div className="px-3 py-2 max-w-4xl mx-auto safe-left safe-right">
             <div className="flex gap-2 items-center">
               <input
                 ref={inputRef}
