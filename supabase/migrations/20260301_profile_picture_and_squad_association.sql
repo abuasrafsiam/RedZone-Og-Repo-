@@ -39,8 +39,28 @@ CREATE POLICY "anyone_can_read_squad_members"
   ON public.squad_members FOR SELECT
   USING (true);
 
-CREATE POLICY "squad_creators_can_manage_members"
-  ON public.squad_members FOR INSERT, UPDATE, DELETE
+CREATE POLICY "squad_creators_can_insert_members"
+  ON public.squad_members FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.squads
+      WHERE squads.id = squad_members.squad_id
+      AND squads.created_by = auth.uid()
+    )
+  );
+
+CREATE POLICY "squad_creators_can_update_members"
+  ON public.squad_members FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.squads
+      WHERE squads.id = squad_members.squad_id
+      AND squads.created_by = auth.uid()
+    )
+  );
+
+CREATE POLICY "squad_creators_can_delete_members"
+  ON public.squad_members FOR DELETE
   USING (
     EXISTS (
       SELECT 1 FROM public.squads
