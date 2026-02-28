@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Heart, MessageCircle, Share2, Image as ImageIcon, X, Gamepad2, Trash2, MoreVertical } from "lucide-react";
+import { Heart, MessageCircle, Share2, Image as ImageIcon, X, Gamepad2, Trash2, MoreVertical, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import AdBanner from "@/components/AdBanner";
 import { useNavigate } from "react-router-dom";
@@ -405,59 +405,101 @@ const Home = ({ currentUserId }: HomeProps) => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Create Post Section */}
-      <div className="sticky top-0 z-40 bg-background border-b border-border/50">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          {/* Post Input */}
-          <div className="flex gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-sm">
+      {/* Facebook-Style Header Section */}
+      <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md">
+        <div className="max-w-2xl mx-auto px-4 py-3">
+          {/* Top Row: Logo & Icon Buttons */}
+          <div className="flex items-center justify-between mb-4">
+            {/* Logo */}
+            <h1 className="text-2xl font-bold text-foreground">RedZone</h1>
+            
+            {/* Icon Buttons Row */}
+            <div className="flex items-center gap-3">
+              {/* Plus Button */}
+              <button className="w-10 h-10 rounded-full bg-secondary/60 hover:bg-secondary transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground">
+                <Plus className="w-5 h-5" />
+              </button>
+              
+              {/* Search Button */}
+              <button className="w-10 h-10 rounded-full bg-secondary/60 hover:bg-secondary transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground">
+                <Search className="w-5 h-5" />
+              </button>
+              
+              {/* Messenger Button */}
+              <button 
+                onClick={() => navigate("/chat")}
+                className="w-10 h-10 rounded-full bg-secondary/60 hover:bg-secondary transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground"
+              >
+                <MessageCircle className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Input Row: Avatar, Input Field, & Image Icon */}
+          <div className="flex items-center gap-3">
+            {/* User Avatar */}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden">
               <span className="text-xs font-bold text-primary-foreground">G</span>
             </div>
-            <input
-              type="text"
-              value={postContent}
-              onChange={(e) => setPostContent(e.target.value)}
-              placeholder="What's on your mind?"
-              className="flex-1 bg-secondary/50 hover:bg-secondary border border-border/50 rounded-full px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:bg-secondary transition-all"
-            />
-          </div>
-
-          {/* Image Preview */}
-          {imagePreview && (
-            <div className="relative mb-3 ml-12 max-w-xs">
-              <div className="relative w-full rounded-lg overflow-hidden border border-border/50 shadow-sm">
-                <img src={imagePreview} alt="Preview" className="w-full h-auto" />
-                <button
-                  onClick={() => {
-                    setSelectedImage(null);
-                    setImagePreview(null);
-                  }}
-                  className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+            
+            {/* Input Field & Image Icon Container */}
+            <div className="flex-1 flex items-center gap-2 bg-secondary/50 hover:bg-secondary rounded-full px-4 py-2.5 transition-all border border-border/50 focus-within:border-primary/50">
+              <input
+                type="text"
+                value={postContent}
+                onChange={(e) => setPostContent(e.target.value)}
+                placeholder="What's on your mind?"
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              />
             </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 ml-12">
-            <label className="px-3 py-2 rounded-full hover:bg-primary/5 text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors inline-flex items-center gap-2">
-              <ImageIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Photo</span>
+            
+            {/* Image Icon Button */}
+            <label className="w-10 h-10 rounded-full bg-secondary/60 hover:bg-secondary transition-colors flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground flex-shrink-0">
+              <ImageIcon className="w-5 h-5" />
               <input type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
             </label>
-            <div className="flex-1" />
-            <button
-              onClick={createPost}
-              disabled={posting || !postContent.trim()}
-              className="px-6 py-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold text-sm rounded-full hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {posting ? "Posting..." : "Post"}
-            </button>
           </div>
+
+          {/* Subtle Divider */}
+          <div className="mt-4 border-t border-border/30" />
         </div>
       </div>
+
+      {/* Image Preview & Post Button Section */}
+      {(imagePreview || postContent.trim()) && (
+        <div className="sticky top-[calc(100px+2.5rem)] z-40 bg-card/95 backdrop-blur-md border-t border-border/30">
+          <div className="max-w-2xl mx-auto px-4 py-4">
+            {/* Image Preview */}
+            {imagePreview && (
+              <div className="relative mb-4 max-w-sm mx-auto">
+                <div className="relative w-full rounded-lg overflow-hidden border border-border/50 shadow-sm">
+                  <img src={imagePreview} alt="Preview" className="w-full h-auto" />
+                  <button
+                    onClick={() => {
+                      setSelectedImage(null);
+                      setImagePreview(null);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Post Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={createPost}
+                disabled={posting || !postContent.trim()}
+                className="px-8 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground font-semibold text-sm rounded-full hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {posting ? "Posting..." : "Post"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Feed */}
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
