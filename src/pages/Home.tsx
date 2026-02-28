@@ -27,7 +27,9 @@ interface Comment {
   user_id: string;
   content: string;
   created_at: string;
+  parent_comment_id?: string | null;
   user?: { id: string; nickname: string; profile_picture_url?: string };
+  replies?: Comment[];
 }
 
 const Home = ({ currentUserId }: HomeProps) => {
@@ -42,6 +44,9 @@ const Home = ({ currentUserId }: HomeProps) => {
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
   const [submittingComment, setSubmittingComment] = useState<Record<string, boolean>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyInput, setReplyInput] = useState("");
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -218,12 +223,34 @@ const Home = ({ currentUserId }: HomeProps) => {
           .in("id", userIds);
         const userMap = new Map((users as unknown[] | null)?.map((u: unknown) => [(u as Record<string, unknown>).id, u]) || []);
 
-        const enrichedComments = (data as unknown[]).map((c: unknown) => ({
-          ...(c as Comment),
-          user: userMap.get((c as Record<string, unknown>).user_id as string) as Comment['user'],
-        }));
+        // Build nested structure
+        const commentMap = new Map<string, Comment>();
+        const rootComments: Comment[] = [];
 
-        setComments((prev) => ({ ...prev, [postId]: enrichedComments as Comment[] }));
+        (data as any[]).forEach((c) => {
+          const enriched: Comment = {
+            ...c,
+            user: userMap.get(c.user_id) as Comment['user'],
+            replies: [],
+          };
+          commentMap.set(c.id, enriched);
+          if (!c.parent_comment_id) {
+            rootComments.push(enriched);
+          }
+        });
+
+        // Attach replies to parent comments
+        commentMap.forEach((comment, id) => {
+          if (comment.parent_comment_id) {
+            const parent = commentMap.get(comment.parent_comment_id);
+            if (parent) {
+              parent.replies = parent.replies || [];
+              parent.replies.push(comment);
+            }
+          }
+        });
+
+        setComments((prev) => ({ ...prev, [postId]: rootComments }));
         setCommentUsers((prev) => ({ ...prev, [postId]: userMap }));
       }
     } catch (error) {
@@ -246,8 +273,8 @@ const Home = ({ currentUserId }: HomeProps) => {
     });
   };
 
-  const submitComment = async (postId: string) => {
-    const content = commentInput[postId]?.trim();
+  const submitComment = async (postId: string, parentCommentId?: string) => {
+    const content = parentCommentId ? replyInput.trim() : commentInput[postId]?.trim();
     if (!content) {
       toast.error("Comment cannot be empty");
       return;
@@ -255,22 +282,34 @@ const Home = ({ currentUserId }: HomeProps) => {
 
     setSubmittingComment((prev) => ({ ...prev, [postId]: true }));
     try {
-      const { error } = await (supabase as any).from("comments").insert({
+      const insertData: any = {
         post_id: postId,
         user_id: currentUserId,
         content,
-      });
+      };
+      if (parentCommentId) {
+        insertData.parent_comment_id = parentCommentId;
+      }
+
+      const { error } = await (supabase as any).from("comments").insert(insertData);
 
       if (!error) {
-        toast.success("Comment posted! 💬");
-        setCommentInput((prev) => ({ ...prev, [postId]: "" }));
+        toast.success(parentCommentId ? "Reply posted! 💬" : "Comment posted! 💬");
+        if (parentCommentId) {
+          setReplyInput("");
+          setReplyingTo(null);
+        } else {
+          setCommentInput((prev) => ({ ...prev, [postId]: "" }));
+        }
         await fetchComments(postId);
-        // Update comment count
-        setPosts((prev) =>
-          prev.map((p) =>
-            p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p
-          )
-        );
+        // Update comment count (only for main comments)
+        if (!parentCommentId) {
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p
+            )
+          );
+        }
         // Auto-scroll to newest comment
         setTimeout(() => {
           commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -533,43 +572,148 @@ const Home = ({ currentUserId }: HomeProps) => {
               {expandedComments.has(post.id) && (
                 <div className="pt-3 mt-3 border-t border-border/50 space-y-3 animate-in fade-in">
                   {/* Existing Comments */}
-                  <div className="bg-secondary/20 rounded-xl p-3 space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
                     {!comments[post.id] || comments[post.id].length === 0 ? (
                       <p className="text-xs text-muted-foreground/50 text-center py-6">No comments yet. Be the first!</p>
                     ) : (
                       <>
-                        {comments[post.id]?.map((comment) => (
-                          <div key={comment.id} className="flex gap-2.5 p-2 rounded-lg hover:bg-secondary/30 transition-colors">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 text-[10px] font-semibold text-white shadow-sm overflow-hidden">
-                              {comment.user?.profile_picture_url ? (
-                                <img src={comment.user.profile_picture_url} alt={comment.user.nickname} className="w-full h-full object-cover" />
-                              ) : (
-                                comment.user?.nickname?.charAt(0).toUpperCase()
+                        {comments[post.id]?.map((comment) => {
+                          const hasReplies = comment.replies && comment.replies.length > 0;
+                          const showReplies = expandedReplies.has(comment.id);
+                          
+                          return (
+                            <div key={comment.id} className="space-y-2">
+                              {/* Parent Comment Card */}
+                              <div className="bg-secondary/20 rounded-xl p-3 hover:bg-secondary/25 transition-colors">
+                                <div className="flex gap-2.5">
+                                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 text-[10px] font-semibold text-white shadow-sm overflow-hidden">
+                                    {comment.user?.profile_picture_url ? (
+                                      <img src={comment.user.profile_picture_url} alt={comment.user.nickname} className="w-full h-full object-cover" />
+                                    ) : (
+                                      comment.user?.nickname?.charAt(0).toUpperCase()
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-xs font-bold text-foreground">{comment.user?.nickname}</p>
+                                      <p className="text-[10px] text-muted-foreground/60">
+                                        {new Date(comment.created_at).toLocaleDateString(undefined, {
+                                          month: "short",
+                                          day: "numeric",
+                                          hour: "numeric",
+                                          minute: "2-digit",
+                                        })}
+                                      </p>
+                                    </div>
+                                    <p className="text-xs text-foreground/90 mt-1 break-words leading-tight">{comment.content}</p>
+                                    {/* Reply Button */}
+                                    <button
+                                      onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                                      className="text-[10px] text-primary hover:text-primary/80 font-medium mt-1.5 transition-colors"
+                                    >
+                                      {replyingTo === comment.id ? "Cancel" : "Reply"}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Reply Input for this comment */}
+                                {replyingTo === comment.id && (
+                                  <div className="flex gap-2 mt-3 ml-9">
+                                    <input
+                                      type="text"
+                                      value={replyInput}
+                                      onChange={(e) => setReplyInput(e.target.value)}
+                                      onKeyPress={(e) => {
+                                        if (e.key === "Enter" && !submittingComment[post.id]) {
+                                          submitComment(post.id, comment.id);
+                                        }
+                                      }}
+                                      placeholder="Write a reply…"
+                                      autoFocus
+                                      className="flex-1 bg-secondary/50 border border-border/50 rounded-full px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-all"
+                                    />
+                                    <button
+                                      onClick={() => submitComment(post.id, comment.id)}
+                                      disabled={submittingComment[post.id] || !replyInput.trim()}
+                                      className="px-3 py-1.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground text-[10px] font-semibold rounded-full hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                                    >
+                                      {submittingComment[post.id] ? "..." : "Reply"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Replies Section */}
+                              {hasReplies && (
+                                <div className="ml-7 space-y-2 border-l-2 border-border/30 pl-3">
+                                  {/* Show Replies Button */}
+                                  {!showReplies && (
+                                    <button
+                                      onClick={() => setExpandedReplies((prev) => {
+                                        const next = new Set(prev);
+                                        next.add(comment.id);
+                                        return next;
+                                      })}
+                                      className="text-[10px] text-primary/70 hover:text-primary font-medium transition-colors"
+                                    >
+                                      ↳ View {comment.replies?.length || 0} {comment.replies?.length === 1 ? "reply" : "replies"}
+                                    </button>
+                                  )}
+
+                                  {/* Render Replies */}
+                                  {showReplies && (
+                                    <>
+                                      {comment.replies?.map((reply) => (
+                                        <div key={reply.id} className="bg-secondary/10 rounded-lg p-2.5 hover:bg-secondary/15 transition-colors">
+                                          <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/60 to-primary/30 flex items-center justify-center flex-shrink-0 text-[9px] font-semibold text-white shadow-sm overflow-hidden">
+                                              {reply.user?.profile_picture_url ? (
+                                                <img src={reply.user.profile_picture_url} alt={reply.user.nickname} className="w-full h-full object-cover" />
+                                              ) : (
+                                                reply.user?.nickname?.charAt(0).toUpperCase()
+                                              )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-1">
+                                                <p className="text-[11px] font-bold text-foreground">{reply.user?.nickname}</p>
+                                                <p className="text-[9px] text-muted-foreground/50">
+                                                  {new Date(reply.created_at).toLocaleDateString(undefined, {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    hour: "numeric",
+                                                    minute: "2-digit",
+                                                  })}
+                                                </p>
+                                              </div>
+                                              <p className="text-[10px] text-foreground/80 mt-0.5 break-words leading-snug">{reply.content}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      <button
+                                        onClick={() => setExpandedReplies((prev) => {
+                                          const next = new Set(prev);
+                                          next.delete(comment.id);
+                                          return next;
+                                        })}
+                                        className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground font-medium transition-colors"
+                                      >
+                                        Hide replies
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <p className="text-xs font-bold text-foreground">{comment.user?.nickname}</p>
-                                <p className="text-[10px] text-muted-foreground/60">
-                                  {new Date(comment.created_at).toLocaleDateString(undefined, {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </p>
-                              </div>
-                              <p className="text-xs text-foreground/90 mt-0.5 break-words leading-tight">{comment.content}</p>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         <div ref={commentsEndRef} />
                       </>
                     )}
                   </div>
 
                   {/* Comment Input */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-2 border-t border-border/30">
                     <input
                       type="text"
                       value={commentInput[post.id] || ""}
