@@ -9,7 +9,39 @@ const AdminDashboard = () => {
     const [recentUsers, setRecentUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => { fetchStats(); }, []);
+    useEffect(() => {
+        fetchStats();
+
+        // Subscribe to realtime changes on users table
+        const usersSubscription = supabase
+            .channel("users-changes")
+            .on("postgres_changes", { event: "*", schema: "public", table: "users" }, () => {
+                fetchStats();
+            })
+            .subscribe();
+
+        // Subscribe to realtime changes on chats table
+        const chatsSubscription = supabase
+            .channel("chats-changes")
+            .on("postgres_changes", { event: "*", schema: "public", table: "chats" }, () => {
+                fetchStats();
+            })
+            .subscribe();
+
+        // Subscribe to realtime changes on messages table
+        const messagesSubscription = supabase
+            .channel("messages-changes")
+            .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
+                fetchStats();
+            })
+            .subscribe();
+
+        return () => {
+            usersSubscription.unsubscribe();
+            chatsSubscription.unsubscribe();
+            messagesSubscription.unsubscribe();
+        };
+    }, []);
 
     const fetchStats = async () => {
         const [usersRes, chatsRes, messagesRes, recentRes] = await Promise.all([

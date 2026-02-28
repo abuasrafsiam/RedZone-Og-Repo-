@@ -30,9 +30,11 @@ ADD COLUMN IF NOT EXISTS description TEXT;
 -- Add RLS policies for squad_members if not exists
 ALTER TABLE public.squad_members ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if they exist to avoid conflicts
+-- Drop ALL existing policies if they exist to avoid conflicts
 DROP POLICY IF EXISTS "anyone_can_read_squad_members" ON public.squad_members;
-DROP POLICY IF EXISTS "squad_creators_can_manage_members" ON public.squad_members;
+DROP POLICY IF EXISTS "squad_creators_can_insert_members" ON public.squad_members;
+DROP POLICY IF EXISTS "squad_creators_can_update_members" ON public.squad_members;
+DROP POLICY IF EXISTS "squad_creators_can_delete_members" ON public.squad_members;
 
 -- Create new policies
 CREATE POLICY "anyone_can_read_squad_members"
