@@ -38,7 +38,27 @@ const Profile = ({ currentUserId, onLogout }: ProfileProps) => {
       toast.error("Failed to load profile");
     }
     if (data) {
-      const userData = data as CurrentUser & { profile_picture_url?: string; };
+      const userData = data as CurrentUser & { profile_picture_url?: string; squad_name?: string };
+      
+      // Fetch squad info if user is a squad member/creator
+      const { data: squadMember } = await supabase
+        .from("squad_members")
+        .select("squad_id")
+        .eq("user_id", currentUserId!)
+        .single();
+      
+      if (squadMember) {
+        const { data: squad } = await supabase
+          .from("squads")
+          .select("squad_name")
+          .eq("id", squadMember.squad_id)
+          .single();
+        
+        if (squad) {
+          userData.squad_name = squad.squad_name;
+        }
+      }
+      
       setUser(userData);
       setPfpPreview(userData.profile_picture_url || null);
       setEditData({
@@ -203,6 +223,9 @@ const Profile = ({ currentUserId, onLogout }: ProfileProps) => {
           <h2 className="font-gaming text-xl text-foreground">{user.nickname}</h2>
           <p className="text-xs text-muted-foreground font-mono">UID: {user.uid}</p>
           {uploading && <p className="text-xs text-primary">Uploading...</p>}
+          {user.squad_name && (
+            <p className="text-xs text-primary font-semibold">🎮 {user.squad_name}</p>
+          )}
         </div>
 
         {/* Stats */}

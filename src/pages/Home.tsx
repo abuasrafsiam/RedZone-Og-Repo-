@@ -435,8 +435,12 @@ const Home = ({ currentUserId }: HomeProps) => {
                   onClick={() => navigate(`/chat?user=${post.user_id}`)}
                   className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center font-bold text-primary-foreground text-sm shadow-sm">
-                    {post.user?.nickname?.charAt(0).toUpperCase()}
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center font-bold text-primary-foreground text-sm shadow-sm overflow-hidden">
+                    {post.user?.profile_picture_url ? (
+                      <img src={post.user.profile_picture_url} alt={post.user.nickname} className="w-full h-full object-cover" />
+                    ) : (
+                      post.user?.nickname?.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-semibold text-foreground leading-tight">{post.user?.nickname}</p>
