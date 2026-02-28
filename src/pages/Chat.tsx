@@ -333,7 +333,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
         </div>
 
         {/* Input Bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border/50 shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border/50 shadow-lg">
           <div className="px-3 py-2 max-w-4xl mx-auto">
             <div className="flex gap-2 items-center">
               <input

@@ -110,45 +110,87 @@ const Profile = ({ currentUserId, onLogout }: ProfileProps) => {
 
   const handlePfpSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setPfpPreview(URL.createObjectURL(file));
-      uploadPfp(file);
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
     }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB");
+      return;
+    }
+    
+    setPfpPreview(URL.createObjectURL(file));
+    uploadPfp(file);
   };
 
   const uploadPfp = async (file: File) => {
     if (!user) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}-pfp.${ext}`;
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}-pfp-${Date.now()}.${ext}`;
       
       // Delete old PFP if exists
       if (user.profile_picture_url) {
         try {
-          await supabase.storage.from("profile-pictures").remove([path]);
+          const oldPath = user.profile_picture_url.split("/").pop();
+          if (oldPath) {
+            await supabase.storage.from("profile-pictures").remove([oldPath]);
+          }
         } catch (error) {
-          console.log("No old PFP to delete");
+          console.log("Could not delete old profile picture");
         }
       }
 
       // Upload new PFP
-      const { error: uploadError } = await supabase.storage.from("profile-pictures").upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("profile-pictures")
+        .upload(path, file, { upsert: false });
+        
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw new Error("Failed to upload image to storage");
+      }
 
-      const { data } = supabase.storage.from("profile-pictures").getPublicUrl(path);
-      const imageUrl = data.publicUrl;
+      if (!uploadData) {
+        throw new Error("No upload data returned");
+      }
 
-      // Update user profile
-      const { error: updateError } = await supabase.from("users").update({ profile_picture_url: imageUrl }).eq("id", user.id);
-      if (updateError) throw updateError;
+      // Get public URL
+      const { data: publicUrl } = supabase.storage.from("profile-pictures").getPublicUrl(path);
+      
+      if (!publicUrl || !publicUrl.publicUrl) {
+        throw new Error("Could not get public URL");
+      }
 
+      const imageUrl = publicUrl.publicUrl;
+
+      // Update user profile in database
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ profile_picture_url: imageUrl })
+        .eq("id", user.id);
+        
+      if (updateError) {
+        console.error("Update error:", updateError);
+        throw new Error("Failed to update profile");
+      }
+
+      // Update local state
       setUser({ ...user, profile_picture_url: imageUrl });
+      setPfpPreview(imageUrl);
       toast.success("Profile picture updated! 🎮");
     } catch (err) {
-      console.error("Error uploading PFP:", err);
-      toast.error("Failed to upload profile picture");
-      setPfpPreview(user.profile_picture_url || null);
+      console.error("Error uploading profile picture:", err);
+      const errorMsg = err instanceof Error ? err.message : "Failed to upload profile picture";
+      toast.error(errorMsg);
+      // Revert preview on error
+      setPfpPreview(user?.profile_picture_url || null);
     } finally {
       setUploading(false);
     }

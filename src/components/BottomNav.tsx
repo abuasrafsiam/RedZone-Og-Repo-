@@ -5,7 +5,7 @@ const tabs = [
   { path: "/", icon: Home, label: "Feed" },
   { path: "/players", icon: Users, label: "Players" },
   { path: "/squads", icon: Shield, label: "Squads" },
-  { path: "/chat", icon: MessageCircle, label: "Trial Zone" },
+  { path: "/chat", icon: MessageCircle, label: "Chat" },
   { path: "/profile", icon: User, label: "Profile" },
 ];
 

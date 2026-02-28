@@ -27,7 +27,7 @@ interface Comment {
   user_id: string;
   content: string;
   created_at: string;
-  user?: { id: string; nickname: string };
+  user?: { id: string; nickname: string; profile_picture_url?: string };
 }
 
 const Home = ({ currentUserId }: HomeProps) => {
@@ -46,6 +46,8 @@ const Home = ({ currentUserId }: HomeProps) => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [commentUsers, setCommentUsers] = useState<Record<string, any>>({});
+  const commentsEndRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchPosts = useCallback(async () => {
@@ -208,11 +210,11 @@ const Home = ({ currentUserId }: HomeProps) => {
         .order("created_at", { ascending: true });
 
       if (data) {
-        // Fetch user details
+        // Fetch user details with profile pictures
         const userIds = [...new Set((data as unknown[]).map((c: unknown) => (c as Record<string, unknown>).user_id))] as string[];
         const { data: users } = await supabase
           .from("users")
-          .select("id, nickname")
+          .select("id, nickname, profile_picture_url")
           .in("id", userIds);
         const userMap = new Map((users as unknown[] | null)?.map((u: unknown) => [(u as Record<string, unknown>).id, u]) || []);
 
@@ -222,6 +224,7 @@ const Home = ({ currentUserId }: HomeProps) => {
         }));
 
         setComments((prev) => ({ ...prev, [postId]: enrichedComments as Comment[] }));
+        setCommentUsers((prev) => ({ ...prev, [postId]: userMap }));
       }
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -268,6 +271,10 @@ const Home = ({ currentUserId }: HomeProps) => {
             p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p
           )
         );
+        // Auto-scroll to newest comment
+        setTimeout(() => {
+          commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
       } else {
         toast.error("Failed to post comment");
       }
@@ -524,28 +531,45 @@ const Home = ({ currentUserId }: HomeProps) => {
 
               {/* Comments Section */}
               {expandedComments.has(post.id) && (
-                <div className="pt-3 mt-3 border-t border-border/50 space-y-3">
+                <div className="pt-3 mt-3 border-t border-border/50 space-y-3 animate-in fade-in">
                   {/* Existing Comments */}
-                  <div className="space-y-3 max-h-56 overflow-y-auto">
+                  <div className="bg-secondary/20 rounded-xl p-3 space-y-2 max-h-64 overflow-y-auto">
                     {!comments[post.id] || comments[post.id].length === 0 ? (
-                      <p className="text-xs text-muted-foreground/50 text-center py-4">No comments yet</p>
+                      <p className="text-xs text-muted-foreground/50 text-center py-6">No comments yet. Be the first!</p>
                     ) : (
-                      comments[post.id]?.map((comment) => (
-                        <div key={comment.id} className="flex gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 text-xs font-semibold text-primary">
-                            {comment.user?.nickname?.charAt(0).toUpperCase()}
+                      <>
+                        {comments[post.id]?.map((comment) => (
+                          <div key={comment.id} className="flex gap-2.5 p-2 rounded-lg hover:bg-secondary/30 transition-colors">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 text-[10px] font-semibold text-white shadow-sm overflow-hidden">
+                              {comment.user?.profile_picture_url ? (
+                                <img src={comment.user.profile_picture_url} alt={comment.user.nickname} className="w-full h-full object-cover" />
+                              ) : (
+                                comment.user?.nickname?.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-bold text-foreground">{comment.user?.nickname}</p>
+                                <p className="text-[10px] text-muted-foreground/60">
+                                  {new Date(comment.created_at).toLocaleDateString(undefined, {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                              </div>
+                              <p className="text-xs text-foreground/90 mt-0.5 break-words leading-tight">{comment.content}</p>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-foreground">{comment.user?.nickname}</p>
-                            <p className="text-xs text-muted-foreground/80 mt-0.5 break-words">{comment.content}</p>
-                          </div>
-                        </div>
-                      ))
+                        ))}
+                        <div ref={commentsEndRef} />
+                      </>
                     )}
                   </div>
 
                   {/* Comment Input */}
-                  <div className="flex gap-2 border-t border-border/50 pt-3">
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       value={commentInput[post.id] || ""}
@@ -553,17 +577,17 @@ const Home = ({ currentUserId }: HomeProps) => {
                         setCommentInput((prev) => ({ ...prev, [post.id]: e.target.value }))
                       }
                       onKeyPress={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === "Enter" && !submittingComment[post.id]) {
                           submitComment(post.id);
                         }
                       }}
                       placeholder="Write a reply…"
-                      className="flex-1 bg-secondary/30 border border-border/50 rounded-full px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-all"
+                      className="flex-1 bg-secondary/50 border border-border/50 rounded-full px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 focus:bg-secondary transition-all"
                     />
                     <button
                       onClick={() => submitComment(post.id)}
-                      disabled={submittingComment[post.id]}
-                      className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-semibold rounded-full hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={submittingComment[post.id] || !commentInput[post.id]?.trim()}
+                      className="px-4 py-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground text-xs font-semibold rounded-full hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                     >
                       {submittingComment[post.id] ? "..." : "Reply"}
                     </button>
