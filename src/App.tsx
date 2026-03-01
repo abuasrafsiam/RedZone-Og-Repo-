@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useTheme } from "@/hooks/useTheme";
 import { useActiveNotification } from "@/hooks/useNotification";
@@ -34,37 +34,13 @@ const AppContent = () => {
   
   const [showNotification, setShowNotification] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
-  
-  // Track notification state by ID + timestamp to detect changes
-  const notificationStateRef = useRef<{ id: string; timestamp: string } | null>(null);
-  
-  // Show notification when available or when notification data changes
+
+  // Show notification when available
   useEffect(() => {
     if (notification && notification.is_active) {
-      // Create current state key from notification ID + timestamp
-      const currentStateKey = { 
-        id: notification.id, 
-        timestamp: notification.created_at 
-      };
-      
-      // Check if this is a different notification than what we're already showing
-      const hasSameState = 
-        notificationStateRef.current &&
-        notificationStateRef.current.id === currentStateKey.id &&
-        notificationStateRef.current.timestamp === currentStateKey.timestamp;
-      
-      // If it's not the same notification, show it (force re-render)
-      if (!hasSameState) {
-        notificationStateRef.current = currentStateKey;
-        setShowNotification(true);
-        console.log("Notification modal opened for:", notification.id);
-      }
-    } else {
-      // No active notification
-      notificationStateRef.current = null;
-      setShowNotification(false);
+      setShowNotification(true);
     }
-  }, [notification?.id, notification?.created_at, notification?.is_active]);
+  }, [notification?.id]);
 
   // Show update when needed and app loads
   useEffect(() => {
@@ -100,11 +76,8 @@ const AppContent = () => {
       <NotificationModal
         notification={notification}
         onDismiss={(id) => {
-          // Reset state to allow future notifications
-          notificationStateRef.current = null;
-          setShowNotification(false);
-          // Dismiss in hook (updates cache and DB)
           dismissNotification(id);
+          setShowNotification(false);
         }}
         isOpen={showNotification}
       />

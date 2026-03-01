@@ -20,14 +20,16 @@ const AdminNotifications = () => {
     const [isActive, setIsActive] = useState(true);
     const [sending, setSending] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     
-    // Track if this is the initial load
-    const isInitialLoadRef = useRef(true);
+    // Track component mount state to prevent state updates after unmount
+    const isMountedRef = useRef(true);
 
     useEffect(() => {
-        // Initial fetch - don't show loading state, just load silently
-        fetchNotifications(false);
+        isMountedRef.current = true;
+        
+        // Initial fetch
+        fetchNotifications(true);
         
         let subscription: any;
         
@@ -36,7 +38,9 @@ const AdminNotifications = () => {
                 .channel("notifications-channel")
                 .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => {
                     // Don't show loading state on subsequent updates
-                    fetchNotifications(false);
+                    if (isMountedRef.current) {
+                        fetchNotifications(false);
+                    }
                 })
                 .subscribe();
         } catch (err) {
@@ -44,6 +48,7 @@ const AdminNotifications = () => {
         }
 
         return () => {
+            isMountedRef.current = false;
             try {
                 if (subscription) {
                     supabase.removeChannel(subscription);
@@ -54,10 +59,10 @@ const AdminNotifications = () => {
         };
     }, []);
 
-    const fetchNotifications = async (showLoading: boolean = false) => {
+    const fetchNotifications = async (isInitial: boolean = false) => {
         try {
-            // Only show loading state if explicitly requested (for manual refresh)
-            if (showLoading) {
+            // Only show loading state on initial load
+            if (isInitial && isMountedRef.current) {
                 setLoading(true);
             }
             
@@ -67,6 +72,9 @@ const AdminNotifications = () => {
                 .order("created_at", { ascending: false })
                 .limit(10);
             
+            // Only update state if component is still mounted
+            if (!isMountedRef.current) return;
+            
             if (error) {
                 console.error("Error fetching notifications:", error);
                 setNotifications([]);
@@ -74,13 +82,17 @@ const AdminNotifications = () => {
                 setNotifications(data || []);
             }
             
-            // Only stop loading if we showed it
-            if (showLoading) {
+            // Only stop loading on initial load
+            if (isInitial) {
                 setLoading(false);
             }
         } catch (err) {
             console.error("Unexpected error in fetchNotifications:", err);
-            if (showLoading) {
+            
+            // Only update state if component is still mounted
+            if (!isMountedRef.current) return;
+            
+            if (isInitial) {
                 setLoading(false);
             }
             setNotifications([]);
@@ -90,6 +102,8 @@ const AdminNotifications = () => {
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim() || !message.trim()) return;
+        
+        if (!isMountedRef.current) return;
         setSending(true);
 
         try {
@@ -99,7 +113,7 @@ const AdminNotifications = () => {
                 const { data } = await supabase.from("users").select("id").or(`nickname.eq.${userIdentifier.trim()},uid.eq.${userIdentifier.trim()}`).maybeSingle();
                 if (!data) { 
                     toast.error("User not found."); 
-                    setSending(false); 
+                    if (isMountedRef.current) setSending(false);
                     return; 
                 }
                 targetUserId = data.id;
@@ -119,6 +133,9 @@ const AdminNotifications = () => {
             };
 
             const { error } = await supabase.from("notifications").insert(insert);
+            
+            if (!isMountedRef.current) return;
+            
             if (!error) {
                 toast.success("Notification sent! 📣");
                 setTitle("");
@@ -136,15 +153,20 @@ const AdminNotifications = () => {
             }
         } catch (err) {
             console.error("Error in handleSend:", err);
-            toast.error("An error occurred while sending notification");
+            if (isMountedRef.current) {
+                toast.error("An error occurred while sending notification");
+            }
         } finally {
-            setSending(false);
+            if (isMountedRef.current) {
+                setSending(false);
+            }
         }
     };
 
     const toggleNotificationActive = async (id: string, current: boolean) => {
         try {
             const { error } = await supabase.from("notifications").update({ is_active: !current }).eq("id", id);
+            if (!isMountedRef.current) return;
             if (!error) {
                 toast.success(`Notification ${!current ? "activated" : "deactivated"}.`);
                 // Update without showing loading state
@@ -155,7 +177,9 @@ const AdminNotifications = () => {
             }
         } catch (err) {
             console.error("Error in toggleNotificationActive:", err);
-            toast.error("An error occurred");
+            if (isMountedRef.current) {
+                toast.error("An error occurred");
+            }
         }
     };
 
@@ -164,6 +188,7 @@ const AdminNotifications = () => {
         
         try {
             const { error } = await supabase.from("notifications").delete().eq("id", id);
+            if (!isMountedRef.current) return;
             if (!error) {
                 toast.success("Notification deleted.");
                 await fetchNotifications(false);
@@ -173,7 +198,9 @@ const AdminNotifications = () => {
             }
         } catch (err) {
             console.error("Error in deleteNotification:", err);
-            toast.error("An error occurred while deleting");
+            if (isMountedRef.current) {
+                toast.error("An error occurred while deleting");
+            }
         }
     };
 

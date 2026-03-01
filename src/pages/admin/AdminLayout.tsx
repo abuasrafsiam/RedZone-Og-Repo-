@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-    LayoutDashboard, Users, MessageSquare, Megaphone, Bell, Tv, Settings, LogOut, Menu, X, Shield,
+    LayoutDashboard, Users, MessageSquare, Megaphone, Bell, Tv, Settings, LogOut, Menu, X, Shield, AlertCircle,
 } from "lucide-react";
 import AdminDashboard from "./AdminDashboard";
 import AdminUsers from "./AdminUsers";
@@ -29,17 +29,26 @@ interface AdminLayoutProps {
 const AdminLayout = ({ adminId, onLogout }: AdminLayoutProps) => {
     const [page, setPage] = useState("dashboard");
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [pageError, setPageError] = useState<string | null>(null);
 
     const renderPage = () => {
-        switch (page) {
-            case "dashboard": return <AdminDashboard />;
-            case "users": return <AdminUsers adminId={adminId} />;
-            case "chats": return <AdminChats />;
-            case "announcements": return <AdminAnnouncements />;
-            case "notifications": return <AdminNotifications />;
-            case "ads": return <AdminAds />;
-            case "settings": return <AdminSettings />;
-            default: return <AdminDashboard />;
+        try {
+            setPageError(null);
+            switch (page) {
+                case "dashboard": return <AdminDashboard />;
+                case "users": return <AdminUsers adminId={adminId} />;
+                case "chats": return <AdminChats />;
+                case "announcements": return <AdminAnnouncements />;
+                case "notifications": return <AdminNotifications />;
+                case "ads": return <AdminAds />;
+                case "settings": return <AdminSettings />;
+                default: return <AdminDashboard />;
+            }
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : "Unknown error";
+            console.error("Error rendering page:", err);
+            setPageError(errorMsg);
+            return null;
         }
     };
 
@@ -105,7 +114,23 @@ const AdminLayout = ({ adminId, onLogout }: AdminLayoutProps) => {
 
                 {/* Page content */}
                 <div className="flex-1 overflow-y-auto p-5">
-                    {renderPage()}
+                    {pageError ? (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-8 max-w-md text-center">
+                                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                                <h3 className="text-lg font-bold text-white mb-2">Page Error</h3>
+                                <p className="text-sm text-gray-400 mb-4">{pageError}</p>
+                                <button
+                                    onClick={() => setPage("dashboard")}
+                                    className="px-6 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium rounded-xl transition-colors"
+                                >
+                                    Back to Dashboard
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        renderPage()
+                    )}
                 </div>
             </main>
         </div>
