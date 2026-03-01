@@ -375,31 +375,69 @@ const Chat = ({ currentUserId }: ChatProps) => {
 
   // ─── CHAT LIST VIEW ───────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
+    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #121212 0%, #0a0a0a 100%)" }}>
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+      <div className="sticky top-0 z-40 bg-[#121212]/80 backdrop-blur-xl border-b border-white/5 shadow-sm">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Chat</h1>
-              <p className="text-xs text-muted-foreground/70">
+              <h1 className="text-3xl font-bold text-white">Chat</h1>
+              <p className="text-xs text-gray-400 mt-1">
                 {chatList.length === 0 ? "No conversations yet" : `${chatList.length} conversation${chatList.length !== 1 ? "s" : ""}`}
               </p>
             </div>
-            <button className="p-2 rounded-full bg-secondary/60 hover:bg-primary/20 transition-all">
-              <MessageCircle className="w-5 h-5 text-muted-foreground" />
+            <button className="p-2.5 rounded-full bg-white/10 hover:bg-white/15 transition-all backdrop-blur">
+              <MessageCircle className="w-5 h-5 text-white" />
             </button>
           </div>
 
-          {/* Search bar */}
+          {/* Search bar with glassmorphism */}
           <div className="relative">
             <input
               type="text"
               placeholder="Search conversations..."
-              className="w-full bg-secondary/60 text-sm text-foreground placeholder:text-muted-foreground/50 rounded-full py-2.5 px-4 focus:outline-none border border-transparent focus:border-primary/40 transition-all"
+              className="w-full bg-white/10 text-sm text-white placeholder:text-gray-400 rounded-full py-2.5 px-4 focus:outline-none border border-white/20 focus:border-white/40 transition-all backdrop-blur-sm hover:bg-white/15"
             />
           </div>
         </div>
+
+        {/* Active Players Row */}
+        {!loading && chatList.length > 0 && (
+          <div className="px-4 py-3 border-t border-white/5">
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {/* Your Story */}
+              <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center font-bold text-white shadow-lg border border-white/10">
+                    +
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-300 text-center">Your Story</p>
+              </div>
+
+              {/* Active Players */}
+              {chatList.slice(0, 8).map((item) => {
+                const online = isOnline(item.other_user.created_at);
+                return online ? (
+                  <div key={item.chat_id} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="relative">
+                      <div
+                        className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-white shadow-lg border border-white/10 transition-transform hover:scale-110"
+                        style={{ background: `linear-gradient(135deg, hsl(0,85%,38%), hsl(0, 85%, 50%))` }}
+                      >
+                        {item.other_user.nickname[0].toUpperCase()}
+                      </div>
+                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#121212] shadow-sm" />
+                    </div>
+                    <p className="text-[11px] text-gray-300 text-center truncate w-14">
+                      {item.other_user.nickname.split(" ")[0]}
+                    </p>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Chat List */}
@@ -428,7 +466,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
             </div>
           </div>
         ) : (
-          <div className="space-y-1 px-2">
+          <div className="space-y-2 px-2 py-3">
             {chatList.map((item) => {
               const online = isOnline(item.other_user.created_at);
               return (
@@ -438,37 +476,37 @@ const Chat = ({ currentUserId }: ChatProps) => {
                     setActiveChat({ chatId: item.chat_id, user: item.other_user });
                     setIsInConversation(true);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary/40 active:bg-secondary/60 transition-all text-left group"
+                  className="chat-item-ripple w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left group"
                 >
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
                     <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-md group-hover:shadow-lg transition-shadow"
+                      className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-lg group-hover:shadow-xl transition-all border border-white/10 group-hover:border-primary/40"
                       style={{ background: `linear-gradient(135deg, hsl(0,85%,38%), hsl(0, 85%, 50%))` }}
                     >
                       {item.other_user.nickname[0].toUpperCase()}
                     </div>
                     {online && (
-                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-background shadow-sm" />
+                      <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-[#121212] shadow-md" />
                     )}
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline gap-2 mb-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <p className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                    <div className="flex justify-between items-start gap-3 mb-1.5">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <p className="font-bold text-sm text-white truncate group-hover:text-primary transition-colors">
                           {item.other_user.nickname}
                         </p>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${rankColors[item.other_user.rank] || "bg-secondary text-foreground"}`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${rankColors[item.other_user.rank] || "bg-white/10 text-gray-300"}`}>
                           {item.other_user.rank}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground/60 flex-shrink-0 group-hover:text-foreground transition-colors">
+                      <span className="text-xs text-gray-500 flex-shrink-0 group-hover:text-gray-300 transition-colors whitespace-nowrap">
                         {formatTime(item.last_message_time)}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground/80 truncate group-hover:text-muted-foreground transition-colors">
+                    <p className="text-xs text-gray-400 truncate group-hover:text-gray-300 transition-colors">
                       {item.last_message || <span className="italic">Tap to start chatting 💬</span>}
                     </p>
                   </div>
