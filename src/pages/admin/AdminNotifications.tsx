@@ -20,14 +20,14 @@ const AdminNotifications = () => {
     const [isActive, setIsActive] = useState(true);
     const [sending, setSending] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     
     // Track if this is the initial load
     const isInitialLoadRef = useRef(true);
 
     useEffect(() => {
-        // Initial fetch
-        fetchNotifications(true);
+        // Initial fetch - don't show loading state, just load silently
+        fetchNotifications(false);
         
         let subscription: any;
         
@@ -54,10 +54,10 @@ const AdminNotifications = () => {
         };
     }, []);
 
-    const fetchNotifications = async (isInitial: boolean = false) => {
+    const fetchNotifications = async (showLoading: boolean = false) => {
         try {
-            // Only show loading state on initial load
-            if (isInitial) {
+            // Only show loading state if explicitly requested (for manual refresh)
+            if (showLoading) {
                 setLoading(true);
             }
             
@@ -74,13 +74,13 @@ const AdminNotifications = () => {
                 setNotifications(data || []);
             }
             
-            // Only stop loading on initial load
-            if (isInitial) {
+            // Only stop loading if we showed it
+            if (showLoading) {
                 setLoading(false);
             }
         } catch (err) {
             console.error("Unexpected error in fetchNotifications:", err);
-            if (isInitial) {
+            if (showLoading) {
                 setLoading(false);
             }
             setNotifications([]);
