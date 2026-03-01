@@ -29,36 +29,61 @@ const AdminNotifications = () => {
         // Initial fetch
         fetchNotifications(true);
         
-        const subscription = supabase
-            .channel("notifications-channel")
-            .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => {
-                // Don't show loading state on subsequent updates
-                fetchNotifications(false);
-            })
-            .subscribe();
+        let subscription: any;
+        
+        try {
+            subscription = supabase
+                .channel("notifications-channel")
+                .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => {
+                    // Don't show loading state on subsequent updates
+                    fetchNotifications(false);
+                })
+                .subscribe();
+        } catch (err) {
+            console.error("Error setting up subscriptions:", err);
+        }
 
         return () => {
-            subscription.unsubscribe();
+            try {
+                if (subscription) {
+                    supabase.removeChannel(subscription);
+                }
+            } catch (err) {
+                console.error("Error cleaning up subscription:", err);
+            }
         };
     }, []);
 
     const fetchNotifications = async (isInitial: boolean = false) => {
-        // Only show loading state on initial load
-        if (isInitial) {
-            setLoading(true);
-        }
-        
-        const { data } = await supabase
-            .from("notifications")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .limit(10);
-        
-        setNotifications(data || []);
-        
-        // Only stop loading on initial load
-        if (isInitial) {
-            setLoading(false);
+        try {
+            // Only show loading state on initial load
+            if (isInitial) {
+                setLoading(true);
+            }
+            
+            const { data, error } = await supabase
+                .from("notifications")
+                .select("*")
+                .order("created_at", { ascending: false })
+                .limit(10);
+            
+            if (error) {
+                console.error("Error fetching notifications:", error);
+                setNotifications([]);
+            } else {
+                setNotifications(data || []);
+            }
+            
+            // Only stop loading on initial load
+            if (isInitial) {
+                setLoading(false);
+            }
+        } catch (err) {
+            console.error("Unexpected error in fetchNotifications:", err);
+            if (isInitial) {
+                setLoading(false);
+            }
+            setNotifications([]);
         }
     };
 
@@ -67,60 +92,88 @@ const AdminNotifications = () => {
         if (!title.trim() || !message.trim()) return;
         setSending(true);
 
-        let targetUserId: string | null = null;
+        try {
+            let targetUserId: string | null = null;
 
-        if (mode === "user") {
-            const { data } = await supabase.from("users").select("id").or(`nickname.eq.${userIdentifier.trim()},uid.eq.${userIdentifier.trim()}`).maybeSingle();
-            if (!data) { toast.error("User not found."); setSending(false); return; }
-            targetUserId = data.id;
+            if (mode === "user") {
+                const { data } = await supabase.from("users").select("id").or(`nickname.eq.${userIdentifier.trim()},uid.eq.${userIdentifier.trim()}`).maybeSingle();
+                if (!data) { 
+                    toast.error("User not found."); 
+                    setSending(false); 
+                    return; 
+                }
+                targetUserId = data.id;
+            }
+
+            const insert: any = {
+                title: title.trim(),
+                message: message.trim(),
+                type: mode,
+                target_user_id: mode === "user" ? targetUserId : null,
+                target_rank: mode === "rank" ? rankTarget : null,
+                priority: priority,
+                icon_type: iconType,
+                action_url: actionUrl.trim() || null,
+                action_label: actionLabel.trim() || null,
+                is_active: isActive,
+            };
+
+            const { error } = await supabase.from("notifications").insert(insert);
+            if (!error) {
+                toast.success("Notification sent! 📣");
+                setTitle("");
+                setMessage("");
+                setUserIdentifier("");
+                setActionUrl("");
+                setActionLabel("");
+                setIsActive(true);
+                setPriority("normal");
+                setIconType("info");
+                await fetchNotifications(false);
+            } else {
+                console.error("Error sending notification:", error);
+                toast.error("Failed to send.");
+            }
+        } catch (err) {
+            console.error("Error in handleSend:", err);
+            toast.error("An error occurred while sending notification");
+        } finally {
+            setSending(false);
         }
-
-        const insert: any = {
-            title: title.trim(),
-            message: message.trim(),
-            type: mode,
-            target_user_id: mode === "user" ? targetUserId : null,
-            target_rank: mode === "rank" ? rankTarget : null,
-            priority: priority,
-            icon_type: iconType,
-            action_url: actionUrl.trim() || null,
-            action_label: actionLabel.trim() || null,
-            is_active: isActive,
-        };
-
-        const { error } = await supabase.from("notifications").insert(insert);
-        if (!error) {
-            toast.success("Notification sent! 📣");
-            setTitle("");
-            setMessage("");
-            setUserIdentifier("");
-            setActionUrl("");
-            setActionLabel("");
-            setIsActive(true);
-            setPriority("normal");
-            setIconType("info");
-            fetchNotifications(false);
-        } else {
-            toast.error("Failed to send.");
-        }
-        setSending(false);
     };
 
     const toggleNotificationActive = async (id: string, current: boolean) => {
-        const { error } = await supabase.from("notifications").update({ is_active: !current }).eq("id", id);
-        if (!error) {
-            toast.success(`Notification ${!current ? "activated" : "deactivated"}.`);
-            // Update without showing loading state
-            fetchNotifications(false);
+        try {
+            const { error } = await supabase.from("notifications").update({ is_active: !current }).eq("id", id);
+            if (!error) {
+                toast.success(`Notification ${!current ? "activated" : "deactivated"}.`);
+                // Update without showing loading state
+                await fetchNotifications(false);
+            } else {
+                console.error("Error toggling notification:", error);
+                toast.error("Failed to update notification");
+            }
+        } catch (err) {
+            console.error("Error in toggleNotificationActive:", err);
+            toast.error("An error occurred");
         }
     };
 
     const deleteNotification = async (id: string) => {
         if (!confirm("Delete this notification?")) return;
-        const { error } = await supabase.from("notifications").delete().eq("id", id);
-        if (!error) {
-            toast.success("Notification deleted.");
-            fetchNotifications(false);
+        
+        try {
+            const { error } = await supabase.from("notifications").delete().eq("id", id);
+            if (!error) {
+                toast.success("Notification deleted.");
+                await fetchNotifications(false);
+            } else {
+                console.error("Error deleting notification:", error);
+                toast.error("Failed to delete notification");
+            }
+        } catch (err) {
+            console.error("Error in deleteNotification:", err);
+            toast.error("An error occurred while deleting");
         }
     };
 
