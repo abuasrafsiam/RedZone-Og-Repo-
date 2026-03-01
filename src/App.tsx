@@ -119,7 +119,8 @@ const AppContent = () => {
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <BottomNav />
+          {/* Hide BottomNav on chat routes */}
+          {!location.pathname.startsWith("/chat") && !location.pathname.startsWith("/squad/chat") && <BottomNav />}
         </>
       )}
     </>

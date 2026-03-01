@@ -308,18 +308,18 @@ const Chat = ({ currentUserId }: ChatProps) => {
                       
                       <div className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[75%]`}>
                         <div
-                          className="px-3 py-1.5 text-sm leading-snug shadow-sm rounded-2xl transition-all"
+                          className="px-4 py-2.5 text-sm leading-relaxed shadow-md rounded-3xl transition-all hover:shadow-lg"
                           style={{
                             background: isMine
                               ? `linear-gradient(135deg, hsl(0,85%,45%), hsl(0, 85%, 55%))`
-                              : "hsl(var(--secondary))",
+                              : "hsl(var(--secondary))/80",
                             color: isMine ? "#fff" : "hsl(var(--foreground))",
-                            borderRadius: isMine ? "16px 2px 16px 16px" : "2px 16px 16px 16px",
+                            backdropFilter: "blur(8px)",
                           }}
                         >
                           {msg.message_text}
                         </div>
-                        <span className="text-[10px] text-muted-foreground/50 mt-0.5 px-1">
+                        <span className="text-[11px] text-muted-foreground/60 mt-1 px-2">
                           {formatMsgTime(msg.created_at)}
                         </span>
                       </div>
@@ -333,9 +333,9 @@ const Chat = ({ currentUserId }: ChatProps) => {
         </div>
 
         {/* Input Bar */}
-        <div className="messenger-input-container bg-card/95 backdrop-blur-md border-t border-border/50 shadow-lg">
-          <div className="px-3 py-2 max-w-4xl mx-auto safe-left safe-right">
-            <div className="flex gap-2 items-center">
+        <div className="messenger-input-container bg-card/80 backdrop-blur-lg border-t border-border/30 shadow-lg">
+          <div className="px-4 py-3 max-w-4xl mx-auto safe-left safe-right">
+            <div className="flex gap-2.5 items-center">
               <input
                 ref={inputRef}
                 type="text"
@@ -343,19 +343,19 @@ const Chat = ({ currentUserId }: ChatProps) => {
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                 placeholder="Message..."
-                className="flex-1 text-sm bg-secondary/50 text-foreground placeholder:text-muted-foreground/50 focus:outline-none transition-all py-2 px-3 rounded-full border border-transparent focus:border-primary/30 h-9"
+                className="flex-1 text-sm bg-secondary/60 text-foreground placeholder:text-muted-foreground/50 focus:outline-none transition-all py-2.5 px-4 rounded-3xl border border-primary/0 focus:border-primary/40 h-10 focus:bg-secondary/80"
               />
               <button
                 onClick={sendMessage}
                 disabled={!newMessage.trim() || sending}
-                className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-30 active:scale-95 hover:scale-105 shadow-sm"
+                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-40 active:scale-90 hover:scale-110 shadow-md hover:shadow-lg"
                 style={{
                   background: newMessage.trim() 
                     ? `linear-gradient(135deg, hsl(0,85%,45%), hsl(0, 85%, 55%))`
                     : "hsl(var(--secondary))",
                 }}
               >
-                <Send className="w-3.5 h-3.5 text-white" />
+                <Send className="w-4 h-4 text-white" />
               </button>
             </div>
           </div>
@@ -366,7 +366,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
 
   // ─── CHAT LIST VIEW ───────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/80 pb-20">
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border/50 shadow-sm">
         <div className="px-4 py-4">

@@ -180,22 +180,22 @@
     padding-right: env(safe-area-inset-right, 0px);
   }
 
-  /* Message composer safe positioning */
+  /* Message composer sticky positioning (not fixed - prevents keyboard overlap) */
   .messenger-input-container {
-    position: fixed;
-    bottom: 5rem; /* 80px = h-20 of nav bar (5rem * 4 = 20 * 16 = 320... wait, h-20 is 80px = 5rem) */
+    position: sticky;
+    bottom: 0;
     left: 0;
     right: 0;
     z-index: 50;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* Conversation view with proper spacing */
+  /* Conversation view with proper flexbox layout */
   .conversation-container {
     display: flex;
     flex-direction: column;
-    min-height: 100dvh;
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    height: 100vh;
+    height: 100dvh;
   }
 
   .messages-area {
@@ -210,5 +210,40 @@
     .messages-area {
       padding-bottom: 1rem;
     }
+  }
+
+  /* Typing indicator animation */
+  @keyframes typing-dot {
+    0%, 60%, 100% {
+      transform: translateY(0);
+      opacity: 0.5;
+    }
+    30% {
+      transform: translateY(-10px);
+      opacity: 1;
+    }
+  }
+
+  .typing-indicator {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+  }
+
+  .typing-indicator span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.5;
+    animation: typing-dot 1.4s infinite;
+  }
+
+  .typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
   }
 }
