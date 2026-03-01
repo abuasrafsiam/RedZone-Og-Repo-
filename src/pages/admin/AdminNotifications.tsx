@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, Globe, User, Trophy, AlertCircle, Check, Info, AlertTriangle, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,13 +21,19 @@ const AdminNotifications = () => {
     const [sending, setSending] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    
+    // Track if this is the initial load
+    const isInitialLoadRef = useRef(true);
 
     useEffect(() => {
-        fetchNotifications();
+        // Initial fetch
+        fetchNotifications(true);
+        
         const subscription = supabase
             .channel("notifications-channel")
             .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => {
-                fetchNotifications();
+                // Don't show loading state on subsequent updates
+                fetchNotifications(false);
             })
             .subscribe();
 
@@ -36,15 +42,24 @@ const AdminNotifications = () => {
         };
     }, []);
 
-    const fetchNotifications = async () => {
-        setLoading(true);
+    const fetchNotifications = async (isInitial: boolean = false) => {
+        // Only show loading state on initial load
+        if (isInitial) {
+            setLoading(true);
+        }
+        
         const { data } = await supabase
             .from("notifications")
             .select("*")
             .order("created_at", { ascending: false })
             .limit(10);
+        
         setNotifications(data || []);
-        setLoading(false);
+        
+        // Only stop loading on initial load
+        if (isInitial) {
+            setLoading(false);
+        }
     };
 
     const handleSend = async (e: React.FormEvent) => {
@@ -84,7 +99,7 @@ const AdminNotifications = () => {
             setIsActive(true);
             setPriority("normal");
             setIconType("info");
-            fetchNotifications();
+            fetchNotifications(false);
         } else {
             toast.error("Failed to send.");
         }
@@ -95,7 +110,8 @@ const AdminNotifications = () => {
         const { error } = await supabase.from("notifications").update({ is_active: !current }).eq("id", id);
         if (!error) {
             toast.success(`Notification ${!current ? "activated" : "deactivated"}.`);
-            fetchNotifications();
+            // Update without showing loading state
+            fetchNotifications(false);
         }
     };
 
@@ -104,7 +120,7 @@ const AdminNotifications = () => {
         const { error } = await supabase.from("notifications").delete().eq("id", id);
         if (!error) {
             toast.success("Notification deleted.");
-            fetchNotifications();
+            fetchNotifications(false);
         }
     };
 
