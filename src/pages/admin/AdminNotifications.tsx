@@ -21,13 +21,12 @@ const AdminNotifications = () => {
     const [sending, setSending] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [renderError, setRenderError] = useState<string | null>(null);
     
-    // Track component mount state to prevent state updates after unmount
-    const isMountedRef = useRef(true);
+    // Track if this is the initial load
+    const isInitialLoadRef = useRef(true);
 
     useEffect(() => {
-        isMountedRef.current = true;
-        
         // Initial fetch
         fetchNotifications(true);
         
@@ -38,9 +37,7 @@ const AdminNotifications = () => {
                 .channel("notifications-channel")
                 .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => {
                     // Don't show loading state on subsequent updates
-                    if (isMountedRef.current) {
-                        fetchNotifications(false);
-                    }
+                    fetchNotifications(false);
                 })
                 .subscribe();
         } catch (err) {
@@ -48,7 +45,6 @@ const AdminNotifications = () => {
         }
 
         return () => {
-            isMountedRef.current = false;
             try {
                 if (subscription) {
                     supabase.removeChannel(subscription);
@@ -62,7 +58,7 @@ const AdminNotifications = () => {
     const fetchNotifications = async (isInitial: boolean = false) => {
         try {
             // Only show loading state on initial load
-            if (isInitial && isMountedRef.current) {
+            if (isInitial) {
                 setLoading(true);
             }
             
@@ -71,9 +67,6 @@ const AdminNotifications = () => {
                 .select("*")
                 .order("created_at", { ascending: false })
                 .limit(10);
-            
-            // Only update state if component is still mounted
-            if (!isMountedRef.current) return;
             
             if (error) {
                 console.error("Error fetching notifications:", error);
@@ -88,10 +81,6 @@ const AdminNotifications = () => {
             }
         } catch (err) {
             console.error("Unexpected error in fetchNotifications:", err);
-            
-            // Only update state if component is still mounted
-            if (!isMountedRef.current) return;
-            
             if (isInitial) {
                 setLoading(false);
             }
@@ -102,8 +91,6 @@ const AdminNotifications = () => {
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim() || !message.trim()) return;
-        
-        if (!isMountedRef.current) return;
         setSending(true);
 
         try {
@@ -113,7 +100,7 @@ const AdminNotifications = () => {
                 const { data } = await supabase.from("users").select("id").or(`nickname.eq.${userIdentifier.trim()},uid.eq.${userIdentifier.trim()}`).maybeSingle();
                 if (!data) { 
                     toast.error("User not found."); 
-                    if (isMountedRef.current) setSending(false);
+                    setSending(false); 
                     return; 
                 }
                 targetUserId = data.id;
@@ -133,9 +120,6 @@ const AdminNotifications = () => {
             };
 
             const { error } = await supabase.from("notifications").insert(insert);
-            
-            if (!isMountedRef.current) return;
-            
             if (!error) {
                 toast.success("Notification sent! 📣");
                 setTitle("");
@@ -153,20 +137,15 @@ const AdminNotifications = () => {
             }
         } catch (err) {
             console.error("Error in handleSend:", err);
-            if (isMountedRef.current) {
-                toast.error("An error occurred while sending notification");
-            }
+            toast.error("An error occurred while sending notification");
         } finally {
-            if (isMountedRef.current) {
-                setSending(false);
-            }
+            setSending(false);
         }
     };
 
     const toggleNotificationActive = async (id: string, current: boolean) => {
         try {
             const { error } = await supabase.from("notifications").update({ is_active: !current }).eq("id", id);
-            if (!isMountedRef.current) return;
             if (!error) {
                 toast.success(`Notification ${!current ? "activated" : "deactivated"}.`);
                 // Update without showing loading state
@@ -177,9 +156,7 @@ const AdminNotifications = () => {
             }
         } catch (err) {
             console.error("Error in toggleNotificationActive:", err);
-            if (isMountedRef.current) {
-                toast.error("An error occurred");
-            }
+            toast.error("An error occurred");
         }
     };
 
@@ -188,7 +165,6 @@ const AdminNotifications = () => {
         
         try {
             const { error } = await supabase.from("notifications").delete().eq("id", id);
-            if (!isMountedRef.current) return;
             if (!error) {
                 toast.success("Notification deleted.");
                 await fetchNotifications(false);
@@ -198,9 +174,7 @@ const AdminNotifications = () => {
             }
         } catch (err) {
             console.error("Error in deleteNotification:", err);
-            if (isMountedRef.current) {
-                toast.error("An error occurred while deleting");
-            }
+            toast.error("An error occurred while deleting");
         }
     };
 
@@ -210,6 +184,25 @@ const AdminNotifications = () => {
         { id: "rank", label: "By Rank", icon: Trophy, desc: "Rank group" },
     ];
 
+    // Render error fallback
+    if (renderError) {
+        return (
+            <div className="space-y-5 max-w-lg">
+                <div className="p-4 bg-red-500/10 border border-red-500/25 rounded-xl">
+                    <p className="text-sm text-red-400">Error loading notifications:</p>
+                    <p className="text-xs text-red-300 mt-1">{renderError}</p>
+                    <button
+                        onClick={() => setRenderError(null)}
+                        className="mt-3 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-xs text-red-300 transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    try {
     return (
         <div className="space-y-5 max-w-lg">
             <div>
@@ -219,14 +212,17 @@ const AdminNotifications = () => {
 
             {/* Mode selector */}
             <div className="grid grid-cols-3 gap-2">
-                {modes.map(({ id, label, icon: Icon, desc }) => (
+                {modes?.map(({ id, label, icon: Icon, desc }) => {
+                    if (!id || !label) return null;
+                    return (
                     <button key={id} onClick={() => setMode(id as any)}
                         className={`p-3 rounded-xl border text-left transition-all ${mode === id ? "border-red-500/40 bg-red-500/10" : "border-[#1a1a1a] bg-[#0d0d0d] hover:border-[#2a2a2a]"}`}>
                         <Icon className={`w-4 h-4 mb-1.5 ${mode === id ? "text-red-400" : "text-gray-500"}`} />
                         <p className={`text-xs font-bold ${mode === id ? "text-white" : "text-gray-400"}`}>{label}</p>
                         <p className="text-[10px] text-gray-600">{desc}</p>
                     </button>
-                ))}
+                    );
+                })}
             </div>
 
             <form onSubmit={handleSend} className="rounded-2xl border border-[#1a1a1a] bg-[#0d0d0d] p-5 space-y-3">
@@ -311,28 +307,38 @@ const AdminNotifications = () => {
                         ))
                     ) : notifications.length === 0 ? (
                         <p className="text-center text-gray-600 text-xs py-6">No notifications yet</p>
-                    ) : notifications.map((notif) => (
+                    ) : notifications.map((notif) => {
+                        // Safety checks for null/undefined fields
+                        if (!notif || !notif.id) return null;
+                        
+                        const priority = notif.priority || "normal";
+                        const type = notif.type || "global";
+                        const title = notif.title || "Untitled";
+                        const message = notif.message || "";
+                        const isActive = notif.is_active;
+                        
+                        return (
                         <div key={notif.id} className="px-5 py-3.5 hover:bg-[#111] transition-colors">
                             <div className="flex items-start gap-3">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <p className="text-sm font-bold text-white truncate">{notif.title}</p>
-                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${notif.priority === "urgent" ? "text-red-400 bg-red-500/15" : notif.priority === "high" ? "text-orange-400 bg-orange-500/15" : notif.priority === "normal" ? "text-blue-400 bg-blue-500/15" : "text-gray-500 bg-gray-500/15"}`}>
-                                            {notif.priority.toUpperCase()}
+                                        <p className="text-sm font-bold text-white truncate">{title}</p>
+                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${priority === "urgent" ? "text-red-400 bg-red-500/15" : priority === "high" ? "text-orange-400 bg-orange-500/15" : priority === "normal" ? "text-blue-400 bg-blue-500/15" : "text-gray-500 bg-gray-500/15"}`}>
+                                            {priority.toUpperCase()}
                                         </span>
-                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${notif.type === "global" ? "text-purple-400 bg-purple-500/15" : notif.type === "user" ? "text-blue-400 bg-blue-500/15" : "text-orange-400 bg-orange-500/15"}`}>
-                                            {notif.type.toUpperCase()}
+                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${type === "global" ? "text-purple-400 bg-purple-500/15" : type === "user" ? "text-blue-400 bg-blue-500/15" : "text-orange-400 bg-orange-500/15"}`}>
+                                            {type.toUpperCase()}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-gray-500 line-clamp-1">{notif.message}</p>
-                                    <p className="text-[10px] text-gray-700 mt-1">{new Date(notif.created_at).toLocaleString()}</p>
+                                    <p className="text-xs text-gray-500 line-clamp-1">{message}</p>
+                                    <p className="text-[10px] text-gray-700 mt-1">{notif.created_at ? new Date(notif.created_at).toLocaleString() : "Unknown date"}</p>
                                 </div>
                                 <div className="flex gap-1.5 flex-shrink-0">
                                     <button
-                                        onClick={() => toggleNotificationActive(notif.id, notif.is_active)}
-                                        className={`p-1.5 rounded-lg transition-colors ${notif.is_active ? "text-green-400 bg-green-500/10 hover:bg-green-500/20" : "text-gray-500 hover:text-green-400 hover:bg-green-500/10"}`}
+                                        onClick={() => toggleNotificationActive(notif.id, isActive)}
+                                        className={`p-1.5 rounded-lg transition-colors ${isActive ? "text-green-400 bg-green-500/10 hover:bg-green-500/20" : "text-gray-500 hover:text-green-400 hover:bg-green-500/10"}`}
                                     >
-                                        {notif.is_active ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                        {isActive ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                                     </button>
                                     <button
                                         onClick={() => deleteNotification(notif.id)}
@@ -343,11 +349,31 @@ const AdminNotifications = () => {
                                 </div>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
     );
+    } catch (error) {
+        console.error("AdminNotifications render error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown render error";
+        setRenderError(errorMessage);
+        return (
+            <div className="space-y-5 max-w-lg">
+                <div className="p-4 bg-red-500/10 border border-red-500/25 rounded-xl">
+                    <p className="text-sm text-red-400">Render Error:</p>
+                    <p className="text-xs text-red-300 mt-1">{errorMessage}</p>
+                    <button
+                        onClick={() => setRenderError(null)}
+                        className="mt-3 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-xs text-red-300 transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
 };
 
 export default AdminNotifications;
