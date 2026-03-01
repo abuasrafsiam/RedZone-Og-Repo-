@@ -194,14 +194,32 @@ const Home = ({ currentUserId }: HomeProps) => {
 
   const uploadImage = async (): Promise<string | null> => {
     if (!selectedImage) return null;
-    const ext = selectedImage.name.split(".").pop();
-    const path = `${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("post-images").upload(path, selectedImage);
-    if (error) {
-      toast.error("Failed to upload image");
+    
+    // ✅ Check if user is authenticated before upload
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to upload images");
       return null;
     }
+    
+    const ext = selectedImage.name.split(".").pop();
+    const path = `${crypto.randomUUID()}.${ext}`;
+    
+    const { error } = await supabase.storage.from("post-images").upload(path, selectedImage);
+    if (error) {
+      console.error("Upload error:", error);
+      toast.error(`Failed to upload image: ${error.message}`);
+      return null;
+    }
+    
+    // ✅ Get public URL with null safety check
     const { data } = supabase.storage.from("post-images").getPublicUrl(path);
+    
+    if (!data || !data.publicUrl) {
+      toast.error("Failed to get image URL from storage");
+      return null;
+    }
+    
     return data.publicUrl;
   };
 

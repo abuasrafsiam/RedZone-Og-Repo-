@@ -255,14 +255,32 @@ const Squads = ({ currentUserId }: SquadsProps) => {
 
   const uploadLogo = async (): Promise<string | null> => {
     if (!logoFile) return null;
-    const ext = logoFile.name.split(".").pop();
-    const path = `${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("squad-logos").upload(path, logoFile);
-    if (error) {
-      toast.error("Failed to upload logo");
+    
+    // ✅ Check if user is authenticated before upload
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to upload a logo");
       return null;
     }
+    
+    const ext = logoFile.name.split(".").pop();
+    const path = `${crypto.randomUUID()}.${ext}`;
+    
+    const { error } = await supabase.storage.from("squad-logos").upload(path, logoFile);
+    if (error) {
+      console.error("Upload error:", error);
+      toast.error(`Failed to upload logo: ${error.message}`);
+      return null;
+    }
+    
+    // ✅ Get public URL with null safety check
     const { data } = supabase.storage.from("squad-logos").getPublicUrl(path);
+    
+    if (!data || !data.publicUrl) {
+      toast.error("Failed to get logo URL from storage");
+      return null;
+    }
+    
     return data.publicUrl;
   };
 

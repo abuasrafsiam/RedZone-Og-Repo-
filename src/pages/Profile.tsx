@@ -130,6 +130,15 @@ const Profile = ({ currentUserId, onLogout }: ProfileProps) => {
 
   const uploadPfp = async (file: File) => {
     if (!user) return;
+    
+    // ✅ Check if user is authenticated before upload
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to upload a profile picture");
+      setUploading(false);
+      return;
+    }
+    
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() || "jpg";
@@ -154,7 +163,7 @@ const Profile = ({ currentUserId, onLogout }: ProfileProps) => {
         
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        throw new Error("Failed to upload image to storage");
+        throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
       if (!uploadData) {
@@ -165,7 +174,7 @@ const Profile = ({ currentUserId, onLogout }: ProfileProps) => {
       const { data: publicUrl } = supabase.storage.from("profile-pictures").getPublicUrl(path);
       
       if (!publicUrl || !publicUrl.publicUrl) {
-        throw new Error("Could not get public URL");
+        throw new Error("Could not get public URL from storage");
       }
 
       const imageUrl = publicUrl.publicUrl;
@@ -178,7 +187,7 @@ const Profile = ({ currentUserId, onLogout }: ProfileProps) => {
         
       if (updateError) {
         console.error("Update error:", updateError);
-        throw new Error("Failed to update profile");
+        throw new Error(`Database update failed: ${updateError.message}`);
       }
 
       // Update local state
