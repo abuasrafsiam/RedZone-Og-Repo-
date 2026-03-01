@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageCircle, Send, ArrowLeft, Circle, Phone, Video, Info } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { useChatContext } from "@/context/ChatContext";
 
 interface ChatProps {
   currentUserId: string | null;
@@ -51,6 +52,7 @@ const sortedIds = (a: string, b: string): [string, string] =>
 
 const Chat = ({ currentUserId }: ChatProps) => {
   const [searchParams] = useSearchParams();
+  const { setIsInConversation } = useChatContext();
   const [chatList, setChatList] = useState<ChatListItem[]>([]);
   const [activeChat, setActiveChat] = useState<{ chatId: string; user: ChatUser } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -128,7 +130,10 @@ const Chat = ({ currentUserId }: ChatProps) => {
     }
     const { data: userData } = await supabase
       .from("users").select("id, nickname, rank, created_at").eq("id", otherUserId).single();
-    if (userData) setActiveChat({ chatId, user: userData });
+    if (userData) {
+      setActiveChat({ chatId, user: userData });
+      setIsInConversation(true);
+    }
   };
 
   const fetchChatList = async () => {
@@ -213,7 +218,11 @@ const Chat = ({ currentUserId }: ChatProps) => {
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setActiveChat(null); fetchChatList(); }}
+                onClick={() => {
+                  setActiveChat(null);
+                  setIsInConversation(false);
+                  fetchChatList();
+                }}
                 className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -425,7 +434,10 @@ const Chat = ({ currentUserId }: ChatProps) => {
               return (
                 <button
                   key={item.chat_id}
-                  onClick={() => setActiveChat({ chatId: item.chat_id, user: item.other_user })}
+                  onClick={() => {
+                    setActiveChat({ chatId: item.chat_id, user: item.other_user });
+                    setIsInConversation(true);
+                  }}
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary/40 active:bg-secondary/60 transition-all text-left group"
                 >
                   {/* Avatar */}

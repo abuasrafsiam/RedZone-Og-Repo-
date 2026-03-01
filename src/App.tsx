@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useTheme } from "@/hooks/useTheme";
 import { useActiveNotification } from "@/hooks/useNotification";
 import { useAppVersion } from "@/hooks/useAppVersion";
+import { ChatProvider, useChatContext } from "@/context/ChatContext";
 import BottomNav from "@/components/BottomNav";
 import AnnouncementPopup from "@/components/AnnouncementPopup";
 import NotificationModal from "@/components/NotificationModal";
@@ -31,6 +32,7 @@ const AppContent = () => {
   const location = useLocation();
   const { notification, dismissNotification } = useActiveNotification();
   const { latestVersion, needsUpdate, forceUpdate } = useAppVersion();
+  const { isInConversation } = useChatContext();
   
   const [showNotification, setShowNotification] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
@@ -119,8 +121,8 @@ const AppContent = () => {
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          {/* Hide BottomNav on chat routes */}
-          {!location.pathname.startsWith("/chat") && !location.pathname.startsWith("/squad/chat") && <BottomNav />}
+          {/* Show BottomNav on chat list, hide when in conversation */}
+          {!location.pathname.startsWith("/squad/chat") && !isInConversation && <BottomNav />}
         </>
       )}
     </>
@@ -133,7 +135,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppContent />
+        <ChatProvider>
+          <AppContent />
+        </ChatProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
