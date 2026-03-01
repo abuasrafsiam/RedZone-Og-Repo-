@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageCircle, Send, ArrowLeft, Circle, Phone, Video, Info } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Circle, Phone, Video, Info, Camera, Edit3 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useChatContext } from "@/context/ChatContext";
 
@@ -60,6 +60,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [msgLoading, setMsgLoading] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "unread" | "groups">("all");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -429,145 +430,137 @@ const Chat = ({ currentUserId }: ChatProps) => {
 
   // ─── CHAT LIST VIEW ───────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #121212 0%, #0a0a0a 100%)" }}>
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-[#121212]/80 backdrop-blur-xl border-b border-white/5 shadow-sm">
-        <div className="px-4 py-4">
+    <div className="min-h-screen" style={{ background: "#111111" }}>
+      {/* Messenger-Style Header */}
+      <div className="sticky top-0 z-40 bg-[#111111] backdrop-blur border-b border-white/5">
+        <div className="px-4 py-3">
+          {/* Header Row: Avatar, Title, Icons */}
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-white">Chat</h1>
-              <p className="text-xs text-gray-400 mt-1">
-                {chatList.length === 0 ? "No conversations yet" : `${chatList.length} conversation${chatList.length !== 1 ? "s" : ""}`}
-              </p>
+            {/* Left: Avatar + Title */}
+            <div className="flex items-center gap-3">
+              {/* User Profile Avatar */}
+              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center font-bold text-white shadow-lg border border-white/10 flex-shrink-0">
+                U
+              </div>
+              {/* Title */}
+              <h1 className="text-2xl font-bold text-white">Chats</h1>
             </div>
-            <button className="p-2.5 rounded-full bg-white/10 hover:bg-white/15 transition-all backdrop-blur">
-              <MessageCircle className="w-5 h-5 text-white" />
-            </button>
+
+            {/* Right: Action Buttons */}
+            <div className="flex gap-2">
+              <button className="p-2.5 rounded-full bg-white/10 hover:bg-white/15 transition-all">
+                <Camera className="w-5 h-5 text-white" />
+              </button>
+              <button className="p-2.5 rounded-full bg-white/10 hover:bg-white/15 transition-all">
+                <Edit3 className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
 
-          {/* Search bar with glassmorphism */}
+          {/* Search Bar - Pill Shape */}
           <div className="relative">
             <input
               type="text"
               placeholder="Search conversations..."
-              className="w-full bg-white/10 text-sm text-white placeholder:text-gray-400 rounded-full py-2.5 px-4 focus:outline-none border border-white/20 focus:border-white/40 transition-all backdrop-blur-sm hover:bg-white/15"
+              className="w-full bg-[#242526] text-sm text-white placeholder:text-gray-500 rounded-full py-2.5 px-4 focus:outline-none border border-white/10 focus:border-white/30 transition-all"
             />
           </div>
         </div>
 
-        {/* Active Players Row */}
-        {!loading && chatList.length > 0 && (
-          <div className="px-4 py-3 border-t border-white/5">
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {/* Your Story */}
-              <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                <div className="relative">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center font-bold text-white shadow-lg border border-white/10">
-                    +
-                  </div>
-                </div>
-                <p className="text-[11px] text-gray-300 text-center">Your Story</p>
-              </div>
-
-              {/* Active Players */}
-              {chatList.slice(0, 8).map((item) => {
-                const online = isOnline(item.other_user.created_at);
-                return online ? (
-                  <div key={item.chat_id} className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <div className="relative">
-                      <div
-                        className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-white shadow-lg border border-white/10 transition-transform hover:scale-110"
-                        style={{ background: `linear-gradient(135deg, hsl(0,85%,38%), hsl(0, 85%, 50%))` }}
-                      >
-                        {item.other_user.nickname[0].toUpperCase()}
-                      </div>
-                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#121212] shadow-sm" />
-                    </div>
-                    <p className="text-[11px] text-gray-300 text-center truncate w-14">
-                      {item.other_user.nickname.split(" ")[0]}
-                    </p>
-                  </div>
-                ) : null;
-              })}
-            </div>
+        {/* Category Pills */}
+        <div className="px-4 py-3 border-t border-white/5">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {["all", "unread", "groups"].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat as "all" | "unread" | "groups")}
+                className={`px-4 py-1.5 rounded-full font-medium text-sm whitespace-nowrap transition-all ${
+                  categoryFilter === cat
+                    ? "bg-gradient-to-r from-red-600 to-red-500 text-white"
+                    : "bg-[#242526] text-gray-300 hover:text-white hover:bg-[#323334]"
+                }`}
+              >
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Chat List */}
-      <div>
+      <div className="divide-y divide-white/5">
         {loading ? (
           // Skeleton loader
-          <div className="space-y-2 px-2">
+          <div className="space-y-0">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-3 rounded-lg">
-                <div className="w-12 h-12 rounded-full bg-secondary/40 animate-pulse flex-shrink-0" />
+              <div key={i} className="flex items-center gap-3 px-4 py-3 bg-white/5 animate-pulse">
+                <div className="w-12 h-12 rounded-full bg-white/10 flex-shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-secondary/40 rounded-full animate-pulse w-1/3" />
-                  <div className="h-2.5 bg-secondary/30 rounded-full animate-pulse w-2/3" />
+                  <div className="h-3 bg-white/10 rounded-full w-1/3" />
+                  <div className="h-2.5 bg-white/10 rounded-full w-2/3" />
                 </div>
               </div>
             ))}
           </div>
         ) : chatList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 px-6 text-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center shadow-lg">
-              <MessageCircle className="w-10 h-10 text-primary/40" />
+            <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center shadow-lg">
+              <MessageCircle className="w-10 h-10 text-white/40" />
             </div>
             <div>
-              <p className="text-foreground font-semibold text-lg mb-1">No messages yet</p>
-              <p className="text-muted-foreground text-sm">Start a conversation by messaging players from the Home feed</p>
+              <p className="text-white font-semibold text-lg mb-1">No messages yet</p>
+              <p className="text-gray-400 text-sm">Start a conversation by messaging players from the Home feed</p>
             </div>
           </div>
         ) : (
-          <div className="space-y-2 px-2 py-3">
-            {chatList.map((item) => {
-              const online = isOnline(item.other_user.created_at);
-              return (
-                <button
-                  key={item.chat_id}
-                  onClick={() => {
-                    setActiveChat({ chatId: item.chat_id, user: item.other_user });
-                    setIsInConversation(true);
-                  }}
-                  className="chat-item-ripple w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left group"
-                >
-                  {/* Avatar */}
-                  <div className="relative flex-shrink-0">
-                    <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-lg group-hover:shadow-xl transition-all border border-white/10 group-hover:border-primary/40"
-                      style={{ background: `linear-gradient(135deg, hsl(0,85%,38%), hsl(0, 85%, 50%))` }}
-                    >
-                      {item.other_user.nickname[0].toUpperCase()}
-                    </div>
-                    {online && (
-                      <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-[#121212] shadow-md" />
-                    )}
-                  </div>
+          chatList.map((item) => {
+            const online = isOnline(item.other_user.created_at);
+            const unread = Math.random() > 0.7; // Placeholder - implement proper unread tracking later
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-3 mb-1.5">
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <p className="font-bold text-sm text-white truncate group-hover:text-primary transition-colors">
-                          {item.other_user.nickname}
-                        </p>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${rankColors[item.other_user.rank] || "bg-white/10 text-gray-300"}`}>
-                          {item.other_user.rank}
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-500 flex-shrink-0 group-hover:text-gray-300 transition-colors whitespace-nowrap">
-                        {formatTime(item.last_message_time)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 truncate group-hover:text-gray-300 transition-colors">
-                      {item.last_message || <span className="italic">Tap to start chatting 💬</span>}
-                    </p>
+            return (
+              <button
+                key={item.chat_id}
+                onClick={() => {
+                  setActiveChat({ chatId: item.chat_id, user: item.other_user });
+                  setIsInConversation(true);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors active:bg-white/10 text-left group"
+              >
+                {/* Avatar with Online Ring */}
+                <div className="relative flex-shrink-0">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm text-white border border-white/10 shadow-md"
+                    style={{ background: `linear-gradient(135deg, hsl(0,85%,38%), hsl(0, 85%, 50%))` }}
+                  >
+                    {item.other_user.nickname[0].toUpperCase()}
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                  {online && (
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-[#111111] shadow-sm" />
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <p className={`text-sm truncate ${unread ? "text-white font-semibold" : "text-gray-300"}`}>
+                      {item.other_user.nickname}
+                    </p>
+                    <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
+                      {formatTime(item.last_message_time)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 truncate line-clamp-1">
+                    {item.last_message || "(No messages yet)"}
+                  </p>
+                </div>
+
+                {/* Unread Indicator Dot */}
+                {unread && (
+                  <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 shadow-lg" />
+                )}
+              </button>
+            );
+          })
         )}
       </div>
     </div>
