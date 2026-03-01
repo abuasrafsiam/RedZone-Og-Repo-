@@ -212,7 +212,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
     const online = isOnline(user.created_at);
 
     return (
-      <div className="conversation-container bg-gradient-to-b from-background to-background/80">
+      <div className="conversation-container" style={{ background: "linear-gradient(180deg, #0B0B0B 0%, #050505 100%)" }}>
         {/* Header */}
         <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border/50 shadow-sm">
           <div className="flex items-center justify-between px-4 py-3">
@@ -291,47 +291,71 @@ const Chat = ({ currentUserId }: ChatProps) => {
               {messages.map((msg, i) => {
                 const isMine = msg.sender_id === currentUserId;
                 const prev = i > 0 ? messages[i - 1] : null;
+                const next = i < messages.length - 1 ? messages[i + 1] : null;
                 const showTimestamp = !prev || new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime() > 300000;
                 const prevSameSender = prev && prev.sender_id === msg.sender_id;
+                const nextSameSender = next && next.sender_id === msg.sender_id;
+                
+                // Calculate border radius based on position in group
+                let borderRadiusClass = "rounded-3xl";
+                if (prevSameSender && nextSameSender) {
+                  borderRadiusClass = isMine ? "rounded-l-3xl rounded-r-sm" : "rounded-r-3xl rounded-l-sm";
+                } else if (prevSameSender && !nextSameSender) {
+                  borderRadiusClass = isMine ? "rounded-l-3xl rounded-tr-3xl rounded-br-sm" : "rounded-r-3xl rounded-tl-3xl rounded-bl-sm";
+                } else if (!prevSameSender && nextSameSender) {
+                  borderRadiusClass = isMine ? "rounded-l-3xl rounded-br-3xl rounded-tr-sm" : "rounded-r-3xl rounded-bl-3xl rounded-tl-sm";
+                }
                 
                 return (
                   <div key={msg.id}>
                     {showTimestamp && (
-                      <div className="flex justify-center my-2">
-                        <span className="text-[10px] text-muted-foreground/60 bg-secondary/40 px-2 py-0.5 rounded-full">
+                      <div className="flex justify-center my-3">
+                        <span className="text-[10px] text-gray-500 bg-white/5 px-3 py-1 rounded-full">
                           {formatTime(msg.created_at)}
                         </span>
                       </div>
                     )}
-                    <div className={`flex ${isMine ? "justify-end" : "justify-start"} gap-1.5 ${i > 0 && prevSameSender ? "mt-0.5" : "mt-2"}`}>
+                    <div className={`flex ${isMine ? "justify-end" : "justify-start"} gap-2 ${prevSameSender ? "mt-0.5" : "mt-3"}`}>
                       {/* Avatar for other user - only show for first message in group */}
                       {!isMine && !prevSameSender && (
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] text-white flex-shrink-0 shadow-sm"
-                          style={{ background: `linear-gradient(135deg, hsl(0,85%,38%), hsl(0, 85%, 50%))` }}
-                        >
-                          {user.nickname[0].toUpperCase()}
+                        <div className="flex flex-col items-end justify-end">
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] text-white shadow-lg border border-white/20"
+                            style={{ background: `linear-gradient(135deg, hsl(0,85%,38%), hsl(0, 85%, 50%))` }}
+                          >
+                            {user.nickname[0].toUpperCase()}
+                          </div>
                         </div>
-                      )}
-                      {!isMine && prevSameSender && <div className="w-6" />}
+                      )}\n                      {!isMine && prevSameSender && <div className="w-7" />}
                       
                       <div className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[75%]`}>
                         <div
-                          className="px-4 py-2.5 text-sm leading-relaxed shadow-md rounded-3xl transition-all hover:shadow-lg"
+                          className={`px-4 py-2.5 text-sm leading-relaxed shadow-lg transition-all hover:shadow-xl ${borderRadiusClass}`}
                           style={{
                             background: isMine
-                              ? `linear-gradient(135deg, hsl(0,85%,45%), hsl(0, 85%, 55%))`
-                              : "hsl(var(--secondary))/80",
-                            color: isMine ? "#fff" : "hsl(var(--foreground))",
-                            backdropFilter: "blur(8px)",
+                              ? `linear-gradient(135deg, hsl(0,80%,50%), hsl(0, 90%, 45%))`
+                              : "#242526",
+                            color: isMine ? "#fff" : "#E4E6EB",
                           }}
                         >
                           {msg.message_text}
                         </div>
-                        <span className="text-[11px] text-muted-foreground/60 mt-1 px-2">
-                          {formatMsgTime(msg.created_at)}
-                        </span>
+                        {!nextSameSender && (
+                          <span className="text-[10px] text-gray-500 mt-1.5 px-2">
+                            {formatMsgTime(msg.created_at)}
+                          </span>
+                        )}
                       </div>
+                      
+                      {/* Read indicator - show for last message from user */}
+                      {isMine && !nextSameSender && (
+                        <div
+                          className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[8px] text-white shadow-md border border-white/20 -ml-1 flex-shrink-0"
+                          style={{ background: `linear-gradient(135deg, hsl(0,85%,38%), hsl(0, 85%, 50%))` }}
+                        >
+                          ✓
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -341,30 +365,60 @@ const Chat = ({ currentUserId }: ChatProps) => {
           )}
         </div>
 
-        {/* Input Bar */}
-        <div className="messenger-input-container bg-card/80 backdrop-blur-lg border-t border-border/30 shadow-lg">
-          <div className="px-4 py-3 max-w-4xl mx-auto safe-left safe-right">
-            <div className="flex gap-2.5 items-center">
-              <input
-                ref={inputRef}
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                placeholder="Message..."
-                className="flex-1 text-sm bg-secondary/60 text-foreground placeholder:text-muted-foreground/50 focus:outline-none transition-all py-2.5 px-4 rounded-3xl border border-primary/0 focus:border-primary/40 h-10 focus:bg-secondary/80"
-              />
+        {/* Input Bar - Floating Pill Design */}
+        <div className="messenger-input-container">
+          <div className="px-3 py-3 pb-4 max-w-4xl mx-auto safe-left safe-right">
+            <div className="flex gap-3 items-end">
+              {/* Left Icons */}
+              <div className="flex gap-2">
+                <button className="p-2.5 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10.5 1.5H3a1.5 1.5 0 00-1.5 1.5v12a1.5 1.5 0 001.5 1.5h10a1.5 1.5 0 001.5-1.5V8.5m-9-5l4 4m0 0l-4 4m4-4H6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                  </svg>
+                </button>
+                <button className="p-2.5 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Input Container - Pill Shape */}
+              <div className="flex-1 flex items-center gap-2 bg-white/10 hover:bg-white/15 rounded-full px-4 py-2.5 transition-all border border-white/20 focus-within:border-primary/60 focus-within:bg-white/20">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                  placeholder="Aa"
+                  className="flex-1 text-sm bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
+                />
+                <button className="p-1.5 text-gray-400 hover:text-white transition-all">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10.5 1.5H3a1.5 1.5 0 00-1.5 1.5v12a1.5 1.5 0 001.5 1.5h10a1.5 1.5 0 001.5-1.5V8.5m-9-5l4 4m0 0l-4 4m4-4H6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Send Button - Glowing */}
               <button
                 onClick={sendMessage}
                 disabled={!newMessage.trim() || sending}
-                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-40 active:scale-90 hover:scale-110 shadow-md hover:shadow-lg"
+                className="send-button-glow flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-40 active:scale-90 hover:scale-110 shadow-lg"
                 style={{
                   background: newMessage.trim() 
-                    ? `linear-gradient(135deg, hsl(0,85%,45%), hsl(0, 85%, 55%))`
-                    : "hsl(var(--secondary))",
+                    ? `linear-gradient(135deg, hsl(0,85%,50%), hsl(0,90%,45%))`
+                    : "rgba(255,255,255,0.1)",
                 }}
               >
-                <Send className="w-4 h-4 text-white" />
+                {newMessage.trim() ? (
+                  <Send className="w-4 h-4 text-white" />
+                ) : (
+                  <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>

@@ -285,4 +285,85 @@
   .typing-indicator span:nth-child(3) {
     animation-delay: 0.4s;
   }
-}
+
+  /* Messenger input bar with floating effect */
+  .messenger-input-container {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: linear-gradient(180deg, transparent 0%, rgba(5, 5, 5, 0.9) 50%, #050505 100%);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: slideUp 0.3s ease-out;
+  }
+
+  /* Slide-up animation when keyboard opens */
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Send button glow effect */
+  .send-button-glow {
+    position: relative;
+  }
+
+  .send-button-glow::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, hsla(0, 85%, 50%, 0.3), hsla(0, 90%, 45%, 0));
+    filter: blur(8px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+  }
+
+  .send-button-glow:not(:disabled):hover::before {
+    opacity: 1;
+  }
+
+  /* Conversation container with subtle glow */
+  .conversation-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    position: relative;
+  }
+
+  .conversation-container::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.02) 0%, transparent 70%);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .messages-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Smooth scroll behavior */
+  @supports (scroll-behavior: smooth) {
+    .messages-area {
+      scroll-behavior: smooth;
+    }
+  }
