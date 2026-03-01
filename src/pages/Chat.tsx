@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageCircle, Send, ArrowLeft, Circle, Phone, Video, Info, Camera, Edit3 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams, useNavigate } from "react-router-dom";
 import { useChatContext } from "@/context/ChatContext";
 
 interface ChatProps {
@@ -52,6 +52,8 @@ const sortedIds = (a: string, b: string): [string, string] =>
 
 const Chat = ({ currentUserId }: ChatProps) => {
   const [searchParams] = useSearchParams();
+  const { conversationId } = useParams<{ conversationId: string }>();
+  const navigate = useNavigate();
   const { setIsInConversation } = useChatContext();
   const [chatList, setChatList] = useState<ChatListItem[]>([]);
   const [activeChat, setActiveChat] = useState<{ chatId: string; user: ChatUser } | null>(null);
@@ -63,6 +65,13 @@ const Chat = ({ currentUserId }: ChatProps) => {
   const [categoryFilter, setCategoryFilter] = useState<"all" | "unread" | "groups">("all");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load conversation from URL param if provided
+  useEffect(() => {
+    if (conversationId && currentUserId) {
+      openOrCreateChat(conversationId);
+    }
+  }, [conversationId, currentUserId]);
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -220,6 +229,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
+                  navigate("/chat");
                   setActiveChat(null);
                   setIsInConversation(false);
                   fetchChatList();
@@ -521,6 +531,7 @@ const Chat = ({ currentUserId }: ChatProps) => {
               <button
                 key={item.chat_id}
                 onClick={() => {
+                  navigate(`/chat/${item.other_user.id}`);
                   setActiveChat({ chatId: item.chat_id, user: item.other_user });
                   setIsInConversation(true);
                 }}

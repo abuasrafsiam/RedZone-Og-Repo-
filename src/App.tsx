@@ -115,14 +115,15 @@ const AppContent = () => {
             <Route path="/players" element={<Players currentUserId={userId} />} />
             <Route path="/squads" element={<Squads currentUserId={userId!} />} />
             <Route path="/chat" element={<Chat currentUserId={userId} />} />
+            <Route path="/chat/:conversationId" element={<Chat currentUserId={userId} />} />
             <Route path="/squad/chat/:squadId" element={<SquadChat currentUserId={userId} />} />
             <Route path="/profile" element={<Profile currentUserId={userId} onLogout={clearUser} />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          {/* Show BottomNav on chat list, hide when in conversation */}
-          {!location.pathname.startsWith("/squad/chat") && !isInConversation && <BottomNav />}
+          {/* Show BottomNav on all pages except messenger conversations */}
+          {!location.pathname.startsWith("/chat/") && !location.pathname.startsWith("/squad/chat/") && <BottomNav />}
         </>
       )}
     </>
