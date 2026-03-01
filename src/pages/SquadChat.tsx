@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MessageCircle, Send, ArrowLeft, AlertCircle } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useChatContext } from "@/context/ChatContext";
 
 interface SquadChatProps {
   currentUserId: string | null;
@@ -49,6 +50,7 @@ const PRIMARY_BORDER = "hsla(0, 85%, 50%, 0.25)";
 const SquadChat = ({ currentUserId }: SquadChatProps) => {
   const { squadId } = useParams<{ squadId: string }>();
   const navigate = useNavigate();
+  const { setIsInConversation } = useChatContext();
   
   const [squad, setSquad] = useState<Squad | null>(null);
   const [messages, setMessages] = useState<SquadMessage[]>([]);
@@ -61,6 +63,12 @@ const SquadChat = ({ currentUserId }: SquadChatProps) => {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Set conversation state when entering squad chat
+  useEffect(() => {
+    setIsInConversation(true);
+    return () => setIsInConversation(false);
+  }, [setIsInConversation]);
 
   // Check if user is squad member and load squad info
   const checkAccessAndLoadSquad = useCallback(async () => {
